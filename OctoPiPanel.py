@@ -124,6 +124,8 @@ class OctoPiPanel():
         self.bglight_ticks = pygame.time.get_ticks()
         self.bglight_on = True
 
+        self.clock = pygame.time.Clock()
+
         """
         # Home X/Y/Z buttons
         self.btnHomeXY        = pygbutton.PygButton((  5,   5, 100, self.buttonHeight), "Home X/Y")
@@ -356,6 +358,8 @@ class OctoPiPanel():
         return
 
     def draw(self):
+        self.clock.tick(30)
+
         #clear whole screen
         self.screen.blit(self.background_image, (0, 0))
 
