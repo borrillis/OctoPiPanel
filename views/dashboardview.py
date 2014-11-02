@@ -6,8 +6,8 @@ from views.panelview import PanelView
 
 
 class DashboardView(PanelView):
-    def __init__(self, config, printer):
-        PanelView.__init__(self, config)
+    def __init__(self, config, bus, printer):
+        PanelView.__init__(self, config, bus)
 
         self.printer = printer
 

@@ -1,3 +1,15 @@
+from views.panelview import PanelView
+
+
+class GraphView(PanelView):
+
+    def __init__(self, config, bus):
+        PanelView.__init__(self, config, bus)
+
+    def draw(self, screen):
+
+        pass
+
 """
 graph_area_left   = 30 #6
     graph_area_top    = 125

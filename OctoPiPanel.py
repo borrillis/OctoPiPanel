@@ -38,9 +38,6 @@ The views and conclusions contained in the software and documentation are those 
 authors and should not be interpreted as representing official policies, either expressed
 or implied, of Jonas Lorander.
 """
-from views.dashboardview import DashboardView
-from views.menuview import MenuView
-
 __author__ = "Jonas Lorander"
 __license__ = "Simplified BSD 2-Clause License"
 
@@ -52,10 +49,16 @@ import pygbutton
 import platform
 import datetime
 from pygame.locals import *
+from cyrusbus import Bus
 
 from config import OctoPiPanelConfig
 from printer import Printer
 from client import OctoPiClient
+from views.dashboardview import DashboardView
+from views.menuview import MenuView
+from views.settingsview import SettingsView
+from views.controlview import ControlView
+from views.graphview import GraphView
 
 class OctoPiPanel():
     """
@@ -67,6 +70,9 @@ class OctoPiPanel():
         """
         .
         """
+        self.bus = Bus()
+        self.bus.subscribe("viewchange", self.handle_viewchange)
+
         self.config = config
         self.octopi_client = OctoPiClient(self.config.api_baseurl, self.config.apikey)
         self.printer = Printer()
@@ -77,10 +83,15 @@ class OctoPiPanel():
         self.menu_button_image = os.path.join(self.config.script_directory, 'assets/button-menu.png')
         self.temperature_icon = pygame.image.load(os.path.join(self.config.script_directory, 'assets/icon-temperature.png'))
 
-        self.menu = MenuView(self.config)
-        self.dashboard = DashboardView(self.config, self.printer)
+        self.menu = MenuView(self.config, self.bus)
 
-        self.active_view = self.dashboard
+        self.views = dict()
+        self.views["dashboard"] = DashboardView(self.config, self.bus, self.printer)
+        self.views["graph"] = GraphView(self.config, self.bus)
+        self.views["control"] = ControlView(self.config, self.bus)
+        self.views["settings"] = SettingsView(self.config, self.bus)
+
+        self.active_view = self.views["dashboard"]
 
         self.menu_open = False
 
@@ -374,6 +385,11 @@ class OctoPiPanel():
 
         # update screen
         pygame.display.update()
+
+    def handle_viewchange(self, eventkey, view_name):
+        if view_name in self.views:
+            self.active_view = self.views[view_name]
+            self.menu_open = False
 
     # Reboot system
     def _reboot(self):

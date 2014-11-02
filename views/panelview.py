@@ -1,8 +1,9 @@
 
 
 class PanelView():
-    def __init__(self, config):
+    def __init__(self, config, bus):
         self.config = config
+        self.bus = bus
         pass
 
     def draw(self, screen):

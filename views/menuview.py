@@ -5,8 +5,8 @@ from views.panelview import PanelView
 
 
 class MenuView(PanelView):
-    def __init__(self, config):
-        PanelView.__init__(self, config)
+    def __init__(self, config, bus):
+        PanelView.__init__(self, config, bus)
 
         self.fntRegText = pygame.font.Font(os.path.join(self.config.script_directory, "assets/Roboto-Regular.ttf"), 16)
         dashboard_icon = pygame.image.load(os.path.join(self.config.script_directory, 'assets/icon-dashboard.png'))
@@ -14,10 +14,10 @@ class MenuView(PanelView):
         control_icon = pygame.image.load(os.path.join(self.config.script_directory, 'assets/icon-control.png'))
         setting_icon = pygame.image.load(os.path.join(self.config.script_directory, 'assets/icon-setting.png'))
 
-        self.menu_items = [{"text": "Dashboard", "icon": dashboard_icon},
-                           {"text": "Temperature Graph", "icon": graph_icon},
-                           {"text": "Control", "icon": control_icon},
-                           {"text": "Settings", "icon": setting_icon}]
+        self.menu_items = [{"text": "Dashboard", "icon": dashboard_icon, "name": "dashboard"},
+                           {"text": "Temperature Graph", "icon": graph_icon, "name": "graph"},
+                           {"text": "Control", "icon": control_icon, "name": "control"},
+                           {"text": "Settings", "icon": setting_icon, "name": "settings"}]
         self.items_per_page = 4
         self.page = 0
 
@@ -26,6 +26,12 @@ class MenuView(PanelView):
 
     def handle_event(self, event):
         PanelView.handle_event(self, event)
+
+        if event.type == pygame.MOUSEBUTTONUP:
+            if 40 <= event.pos[1] < 200:
+                item_pos = ((event.pos[1] - 40) / 40) + (self.page * self.items_per_page)
+                if len(self.menu_items) > item_pos:
+                    self.bus.publish("viewchange", self.menu_items[item_pos]["name"])
 
     def draw(self, screen):
         PanelView.draw(self, screen)
