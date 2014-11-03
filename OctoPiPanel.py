@@ -86,7 +86,7 @@ class OctoPiPanel():
         self.views = dict()
         self.views["dashboard"] = DashboardView(self.config, self.bus, self.octopi_client, self.printer)
         self.views["graph"] = GraphView(self.config, self.bus, self.printer)
-        self.views["control"] = ControlView(self.config, self.bus)
+        self.views["control"] = ControlView(self.config, self.bus, self.octopi_client)
         self.views["settings"] = SettingsView(self.config, self.bus)
 
         self.active_view = self.views["dashboard"]
@@ -124,7 +124,7 @@ class OctoPiPanel():
 
         self.clock = pygame.time.Clock()
 
-        self.btnMenu      = pygbutton.PygButton((260,  0, 40, 40), normal=self.menu_button_image)
+        self.btnMenu = pygbutton.PygButton((260,  0, 40, 40), normal=self.menu_button_image)
 
         # I couldnt seem to get at pin 252 for the backlight using the usual method, 
         # but this seems to work
@@ -136,7 +136,7 @@ class OctoPiPanel():
         # Init of class done
         print "OctoPiPanel initiated"
 
-    def Start(self):
+    def start(self):
         # OctoPiPanel started
         print "OctoPiPanel started!"
         print "---"
@@ -280,4 +280,4 @@ if __name__ == '__main__':
     config = OctoPiPanelConfig.load_from_file()
 
     opp = OctoPiPanel(config)
-    opp.Start()
+    opp.start()

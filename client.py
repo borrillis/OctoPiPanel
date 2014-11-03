@@ -90,8 +90,32 @@ class OctoPiClient:
 
         return
 
+    def home_x(self):
+        data = {"command": "home", "axes": ["x"]}
+
+        # Send command
+        self.send_api_command(self.apiurl_printhead, data)
+
+        return
+
+    def home_y(self):
+        data = {"command": "home", "axes": ["y"]}
+
+        # Send command
+        self.send_api_command(self.apiurl_printhead, data)
+
+        return
+
     def home_z(self):
         data = {"command": "home", "axes": ["z"]}
+
+        # Send command
+        self.send_api_command(self.apiurl_printhead, data)
+
+        return
+
+    def jog_axis(self, x=0, y=0, z=0):
+        data = {"command": "jog", "x": x, "y": y, "z": z}
 
         # Send command
         self.send_api_command(self.apiurl_printhead, data)
