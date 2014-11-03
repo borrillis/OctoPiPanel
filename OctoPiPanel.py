@@ -89,7 +89,7 @@ class OctoPiPanel():
 
         self.views = dict()
         self.views["dashboard"] = DashboardView(self.config, self.bus, self.octopi_client, self.printer)
-        self.views["graph"] = GraphView(self.config, self.bus)
+        self.views["graph"] = GraphView(self.config, self.bus, self.printer)
         self.views["control"] = ControlView(self.config, self.bus)
         self.views["settings"] = SettingsView(self.config, self.bus)
 

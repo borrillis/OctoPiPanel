@@ -19,5 +19,5 @@ class Printer:
         self.FileName = "Nothing"
 
         # Lists for temperature data
-        self.HotEndTempList = deque([0] * 200)
-        self.BedTempList = deque([0] * 200)
+        self.HotEndTempList = deque([0] * 285)
+        self.BedTempList = deque([0] * 285)
