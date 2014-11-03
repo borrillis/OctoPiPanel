@@ -6,10 +6,11 @@ from views.panelview import PanelView
 
 
 class DashboardView(PanelView):
-    def __init__(self, config, bus, printer):
+    def __init__(self, config, bus, octopi_client, printer):
         PanelView.__init__(self, config, bus)
 
         self.printer = printer
+        self.octopi_client = octopi_client
 
         self.fntText = pygame.font.Font(os.path.join(self.config.script_directory, "assets/Roboto-Regular.ttf"), 60)
         self.fntRegText = pygame.font.Font(os.path.join(self.config.script_directory, "assets/Roboto-Regular.ttf"), 12)
@@ -41,11 +42,11 @@ class DashboardView(PanelView):
         PanelView.handle_event(self, event)
 
         if 'click' in self.btn_start_print.handleEvent(event):
-            self._start_print()
+            self.octopi_client.start_print()
 
         if 'click' in self.btn_pause_print.handleEvent(event):
-            self._abort_print()
+            self.octopi_client.abort_print()
 
         if 'click' in self.btn_abort_print.handleEvent(event):
-            self._pause_print()
+            self.octopi_client.pause_print()
 

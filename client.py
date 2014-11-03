@@ -1,98 +1,159 @@
+import json
+from threading import Thread
 import requests
 
 
 class OctoPiClient:
-
     def __init__(self, server_url, api_key):
-        addkey = '?apikey={0}'.format(api_key)
-        apiurl_printhead = '{0}/api/printer/printhead'.format(server_url)
-        apiurl_tool = '{0}/api/printer/tool'.format(server_url)
-        apiurl_bed = '{0}/api/printer/bed'.format(server_url)
-        apiurl_job = '{0}/api/job'.format(server_url)
-        apiurl_status = '{0}/api/printer?apikey={1}'.format(server_url, api_key)
-        apiurl_connection = '{0}/api/connection'.format(server_url)
+        self.api_key = api_key
+        self.addkey = '?apikey={0}'.format(api_key)
+        self.apiurl_printhead = '{0}/api/printer/printhead'.format(server_url)
+        self.apiurl_tool = '{0}/api/printer/tool'.format(server_url)
+        self.apiurl_bed = '{0}/api/printer/bed'.format(server_url)
+        self.apiurl_job = '{0}/api/job'.format(server_url)
+        self.apiurl_status = '{0}/api/printer?apikey={1}'.format(server_url, api_key)
+        self.apiurl_connection = '{0}/api/connection'.format(server_url)
+        self.thread = None
 
-    def getprinterstatus(self):
+    def get_printer_status(self, printer):
         req = requests.get(self.apiurl_status)
 
+        if req.status_code == 200:
+            state = json.loads(req.text)
+
+            # Set status flags
+            printer.HotEndTemp = state['temps']['tool0']['actual']
+            printer.BedTemp = state['temps']['bed']['actual']
+            printer.HotEndTempTarget = state['temps']['tool0']['target']
+            printer.BedTempTarget = state['temps']['bed']['target']
+
+            if not printer.HotEndTempTarget:
+                printer.HotEndTempTarget = 0.0
+
+            if not printer.BedTempTarget:
+                printer.BedTempTarget = 0.0
+
+            if printer.HotEndTempTarget > 0.0:
+                printer.HotHotEnd = True
+            else:
+                printer.HotHotEnd = False
+
+            if printer.BedTempTarget > 0.0:
+                printer.HotBed = True
+            else:
+                printer.HotBed = False
+
+    def get_job_status(self, printer):
+        req = requests.get(self.apiurl_job + self.addkey)
+
+        if req.status_code == 200:
+            jobState = json.loads(req.text)
+
+            printer.Completion = jobState['progress']['completion'] or 0
+            printer.PrintTimeLeft = jobState['progress']['printTimeLeft'] or 0
+            printer.FileName = jobState['job']['file']['name'] or ""
+
+    def get_connection_status(self, printer):
+        req = requests.get(self.apiurl_connection + self.addkey)
+        if req.status_code == 200:
+            connState = json.loads(req.text)
+
+            # Save temperatures to lists
+            printer.HotEndTempList.popleft()
+            printer.HotEndTempList.append(printer.HotEndTemp)
+            printer.BedTempList.popleft()
+            printer.BedTempList.append(printer.BedTemp)
+
+            printer.Paused = connState['current']['state'] == "Paused"
+            printer.Printing = connState['current']['state'] == "Printing"
+
     # Send API-data to OctoPrint
-    def _sendAPICommand(self, url, data):
-        headers = { 'content-type': 'application/json', 'X-Api-Key': self.apikey }
-        r = requests.post(url, data=json.dumps(data), headers=headers)
-        print r.text
+    def send_api_command(self, url, data):
+        headers = {'content-type': 'application/json', 'X-Api-Key': self.api_key}
 
-    def _home_xy(self):
-        data = { "command": "home", "axes": ["x", "y"] }
+        # Only allow executing one action at a time. Should prevent printers running away with queued commands
+        if self.thread and self.thread.isAlive():
+            return
+
+        self.thread = Thread(target=self.send_request, args=(url, data, headers))
+        self.thread.start()
+
+    def send_request(self, url, data, headers):
+        requests.post(url, data=json.dumps(data), headers=headers, timeout=0.2)
+        return
+
+    def home_xy(self):
+        data = {"command": "home", "axes": ["x", "y"]}
 
         # Send command
-        self._sendAPICommand(self.apiurl_printhead, data)
+        self.send_api_command(self.apiurl_printhead, data)
 
         return
 
-    def _home_z(self):
-        data = { "command": "home", "axes": ["z"] }
+    def home_z(self):
+        data = {"command": "home", "axes": ["z"]}
 
         # Send command
-        self._sendAPICommand(self.apiurl_printhead, data)
+        self.send_api_command(self.apiurl_printhead, data)
 
         return
 
-    def _z_up(self):
-        data = { "command": "jog", "x": 0, "y": 0, "z": 25 }
+    def z_up(self):
+        data = {"command": "jog", "x": 0, "y": 0, "z": 25}
 
         # Send command
-        self._sendAPICommand(self.apiurl_printhead, data)
+        self.send_api_command(self.apiurl_printhead, data)
 
         return
 
 
-    def _heat_bed(self):
+    def heat_bed(self):
         # is the bed already hot, in that case turn it off
         if self.HotBed:
-            data = { "command": "target", "target": 0 }
+            data = {"command": "target", "target": 0}
         else:
-            data = { "command": "target", "target": 50 }
+            data = {"command": "target", "target": 50}
 
         # Send command
-        self._sendAPICommand(self.apiurl_bed, data)
+        self.send_api_command(self.apiurl_bed, data)
 
         return
 
-    def _heat_hotend(self):
+    def heat_hotend(self):
         # is the bed already hot, in that case turn it off
         if self.HotHotEnd:
-            data = { "command": "target", "targets": { "tool0": 0   } }
+            data = {"command": "target", "targets": {"tool0": 0}}
         else:
-            data = { "command": "target", "targets": { "tool0": 190 } }
+            data = {"command": "target", "targets": {"tool0": 190}}
 
         # Send command
-        self._sendAPICommand(self.apiurl_tool, data)
+        self.send_api_command(self.apiurl_tool, data)
 
         return
 
-    def _start_print(self):
+    def start_print(self):
         # here we should display a yes/no box somehow
-        data = { "command": "start" }
+        data = {"command": "start"}
 
         # Send command
-        self._sendAPICommand(self.apiurl_job, data)
+        self.send_api_command(self.apiurl_job, data)
 
         return
 
-    def _abort_print(self):
+    def abort_print(self):
         # here we should display a yes/no box somehow
-        data = { "command": "cancel" }
+        data = {"command": "cancel"}
 
         # Send command
-        self._sendAPICommand(self.apiurl_job, data)
+        self.send_api_command(self.apiurl_job, data)
 
         return
 
     # Pause or resume print
-    def _pause_print(self):
-        data = { "command": "pause" }
+    def pause_print(self):
+        data = {"command": "pause"}
 
         # Send command
-        self._sendAPICommand(self.apiurl_job, data)
+        self.send_api_command(self.apiurl_job, data)
 
         return

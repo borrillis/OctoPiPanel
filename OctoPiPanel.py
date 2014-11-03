@@ -47,6 +47,8 @@ import sys
 import pygame
 import pygbutton
 import platform
+import time
+from threading import Thread
 import datetime
 from pygame.locals import *
 from cyrusbus import Bus
@@ -86,7 +88,7 @@ class OctoPiPanel():
         self.menu = MenuView(self.config, self.bus)
 
         self.views = dict()
-        self.views["dashboard"] = DashboardView(self.config, self.bus, self.printer)
+        self.views["dashboard"] = DashboardView(self.config, self.bus, self.octopi_client, self.printer)
         self.views["graph"] = GraphView(self.config, self.bus)
         self.views["control"] = ControlView(self.config, self.bus)
         self.views["settings"] = SettingsView(self.config, self.bus)
@@ -126,21 +128,6 @@ class OctoPiPanel():
 
         self.clock = pygame.time.Clock()
 
-        """
-        # Home X/Y/Z buttons
-        self.btnHomeXY        = pygbutton.PygButton((  5,   5, 100, self.buttonHeight), "Home X/Y")
-        self.btnHomeZ         = pygbutton.PygButton((  5,  35, 100, self.buttonHeight), "Home Z")
-        self.btnZUp           = pygbutton.PygButton((110,  35, 100, self.buttonHeight), "Z +25")
-
-        # Heat buttons
-        self.btnHeatBed       = pygbutton.PygButton((  5,  65, 100, self.buttonHeight), "Heat bed")
-        self.btnHeatHotEnd    = pygbutton.PygButton((  5,  95, 100, self.buttonHeight), "Heat hot end")
-
-        # Shutdown and reboot buttons
-        self.btnReboot        = pygbutton.PygButton((215,   5, 100, self.buttonHeight), "Reboot")
-        self.btnShutdown      = pygbutton.PygButton((215,  35, 100, self.buttonHeight), "Shutdown")
-        """
-
         self.btnMenu      = pygbutton.PygButton((260,  0, 40, 40), normal=self.menu_button_image)
 
         # I couldnt seem to get at pin 252 for the backlight using the usual method, 
@@ -158,15 +145,13 @@ class OctoPiPanel():
         print "OctoPiPanel started!"
         print "---"
 
+        self.thread = Thread(target=self.state_thread)
+        self.thread.start()
+
         """ game loop: input, move, render"""
         while not self.done:
             # Handle events
             self.handle_events()
-
-            # Update info from printer every other seconds
-            if pygame.time.get_ticks() - self.getstate_ticks > self.config.updatetime:
-                self.get_state()
-                self.getstate_ticks = pygame.time.get_ticks()
 
             # Is it time to turn of the backlight?
             if pygame.time.get_ticks() - self.bglight_ticks > self.config.backlightofftime and platform.system() == 'Linux':
@@ -174,9 +159,6 @@ class OctoPiPanel():
                 os.system("echo '0' > /sys/class/gpio/gpio252/value")
                 self.bglight_ticks = pygame.time.get_ticks()
                 self.bglight_on = False
-
-            # Update buttons visibility, text, graphs etc
-            self.update()
 
             # Draw everything
             self.draw()
@@ -216,28 +198,6 @@ class OctoPiPanel():
                 if 'click' in self.btnMenu.handleEvent(event):
                     self.menu_open = not self.menu_open
 
-                """
-                if 'click' in self.btnHomeXY.handleEvent(event):
-                    self._home_xy()
-
-                if 'click' in self.btnHomeZ.handleEvent(event):
-                    self._home_z()
-
-                if 'click' in self.btnZUp.handleEvent(event):
-                    self._z_up()
-
-                if 'click' in self.btnHeatBed.handleEvent(event):
-                    self._heat_bed()
-
-                if 'click' in self.btnHeatHotEnd.handleEvent(event):
-                    self._heat_hotend()
-
-                if 'click' in self.btnReboot.handleEvent(event):
-                    self._reboot()
-
-                if 'click' in self.btnShutdown.handleEvent(event):
-                    self._shutdown()"""
-
             # Did the user click on the screen?
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # Reset backlight counter
@@ -252,110 +212,13 @@ class OctoPiPanel():
     """
     Get status update from API, regarding temp etc.
     """
-    def get_state(self):
-        """
-        try:
-            self.octopi_client.getprinterstatus()
+    def state_thread(self):
+        while not self.done:
+            self.octopi_client.get_printer_status(self.printer)
+            self.octopi_client.get_job_status(self.printer)
+            self.octopi_client.get_connection_status(self.printer)
 
-            if req.status_code == 200:
-                state = json.loads(req.text)
-
-                # Set status flags
-                self.HotEndTemp = state['temps']['tool0']['actual']
-                self.BedTemp = state['temps']['bed']['actual']
-                self.HotEndTempTarget = state['temps']['tool0']['target']
-                self.BedTempTarget = state['temps']['bed']['target']
-
-                if self.HotEndTempTarget == None:
-                    self.HotEndTempTarget = 0.0
-
-                if self.BedTempTarget == None:
-                    self.BedTempTarget = 0.0
-
-                if self.HotEndTempTarget > 0.0:
-                    self.HotHotEnd = True
-                else:
-                    self.HotHotEnd = False
-
-                if self.BedTempTarget > 0.0:
-                    self.HotBed = True
-                else:
-                    self.HotBed = False
-
-                #print self.apiurl_status
-
-            # Get info about current job
-            req = requests.get(self.apiurl_job + self.addkey)
-            if req.status_code == 200:
-                jobState = json.loads(req.text)
-
-            req = requests.get(self.apiurl_connection + self.addkey)
-            if req.status_code == 200:
-                connState = json.loads(req.text)
-
-                #print self.apiurl_job + self.addkey
-
-                self.Completion = jobState['progress']['completion'] # In procent
-                self.PrintTimeLeft = jobState['progress']['printTimeLeft']
-                #self.Height = state['currentZ']
-                self.FileName = jobState['job']['file']['name']
-                self.JobLoaded = connState['current']['state'] == "Operational" and (jobState['job']['file']['name'] != "") or (jobState['job']['file']['name'] != None)
-
-                # Save temperatures to lists
-                self.HotEndTempList.popleft()
-                self.HotEndTempList.append(self.HotEndTemp)
-                self.BedTempList.popleft()
-                self.BedTempList.append(self.BedTemp)
-
-                #print self.HotEndTempList
-                #print self.BedTempList
-
-                self.Paused = connState['current']['state'] == "Paused"
-                self.Printing = connState['current']['state'] == "Printing"
-
-
-        except requests.exceptions.ConnectionError as e:
-            print "Connection Error ({0}): {1}".format(e.errno, e.strerror)
-"""
-        return
-
-    """
-    Update buttons, text, graphs etc.
-    """
-    def update(self):
-        # Set home buttons visibility
-        """self.btnHomeXY.visible = not (self.printer.Printing or self.printer.Paused)
-        self.btnHomeZ.visible = not (self.printer.Printing or self.printer.Paused)
-        self.btnZUp.visible = not (self.printer.Printing or self.printer.Paused)
-
-        # Set abort and pause buttons visibility
-        #self.btnStartPrint.visible = not (self.printer.Printing or self.printer.Paused) and self.printer.JobLoaded
-        #self.btnAbortPrint.visible = self.printer.Printing or self.printer.Paused
-        #self.btnPausePrint.visible = self.printer.Printing or self.printer.Paused
-
-        # Set texts on pause button
-        #if self.printer.Paused:
-            #self.btnPausePrint.caption = "Resume"
-        #else:
-            #self.btnPausePrint.caption = "Pause"
-
-        # Set abort and pause buttons visibility
-        self.btnHeatHotEnd.visible = not (self.printer.Printing or self.printer.Paused)
-        self.btnHeatBed.visible = not (self.printer.Printing or self.printer.Paused)
-
-        # Set texts on heat buttons
-        if self.printer.HotHotEnd:
-            self.btnHeatHotEnd.caption = "Turn off hot end"
-        else:
-            self.btnHeatHotEnd.caption = "Heat hot end"
-
-        if self.printer.HotBed:
-            self.btnHeatBed.caption = "Turn off bed"
-        else:
-            self.btnHeatBed.caption = "Heat bed"
-        """
-
-        return
+            time.sleep(self.config.updatetime / 1000.0)
 
     def draw(self):
         self.clock.tick(30)
