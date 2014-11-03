@@ -41,16 +41,12 @@ or implied, of Jonas Lorander.
 __author__ = "Jonas Lorander"
 __license__ = "Simplified BSD 2-Clause License"
 
-import json
 import os
-import sys
 import pygame
 import pygbutton
 import platform
 import time
 from threading import Thread
-import datetime
-from pygame.locals import *
 from cyrusbus import Bus
 
 from config import OctoPiPanelConfig
