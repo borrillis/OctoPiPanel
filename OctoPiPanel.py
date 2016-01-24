@@ -49,8 +49,8 @@ import time
 from threading import Thread
 from cyrusbus import Bus
 
-from config import OctoPiPanelConfig
-from printer import Printer
+from Config import OctoPiPanelConfig
+from Printer import Printer
 from client import OctoPiClient
 from views.dashboardview import DashboardView
 from views.menuview import MenuView

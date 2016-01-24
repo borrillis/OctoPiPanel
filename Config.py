@@ -18,12 +18,16 @@ class OctoPiPanelConfig:
         config.backlightofftime = cfg.getint('settings', 'backlightofftime')
 
         if cfg.has_option('settings', 'width'):
-            config.width = cfg.get('settings', 'width')
+            config.width = cfg.getint('settings', 'width')
+        elif cfg.has_option('settings', 'window_width'):
+            config.width = cfg.getint('settings', 'width')
         else:
             config.width = 320
 
         if cfg.has_option('settings', 'height'):
-            config.height = cfg.get('settings', 'height')
+            config.height = cfg.getint('settings', 'height')
+        elif cfg.has_option('settings', 'window_height'):
+            config.height = cfg.getint('settings', 'height')
         else:
             config.height = 240
 
