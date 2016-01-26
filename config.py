@@ -16,6 +16,8 @@ class OctoPiPanelConfig:
         config.apikey = cfg.get('settings', 'apikey')
         config.updatetime = cfg.getint('settings', 'updatetime')
         config.backlightofftime = cfg.getint('settings', 'backlightofftime')
+        config.statusbarheight = 40
+        config.titlebarheight = 40
 
         if cfg.has_option('settings', 'width'):
             config.width = cfg.getint('settings', 'width')

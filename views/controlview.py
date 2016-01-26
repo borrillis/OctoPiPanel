@@ -5,23 +5,26 @@ from views.panelview import PanelView
 
 class ControlView(PanelView):
 
-    def __init__(self, config, bus, client):
-        PanelView.__init__(self, config, bus)
+    def __init__(self, config, client):
+        PanelView.__init__(self, config, "Control")
 
         self.client = client
 
         self.jog_amount = 10
 
-        self.btn_left = pygbutton.PygButton((2, 92, 50, 50), normal=self.image_path('assets/control-arrow-left.png'))
-        self.btn_right = pygbutton.PygButton((102, 92, 50, 50), normal=self.image_path('assets/control-arrow-right.png'))
-        self.btn_up = pygbutton.PygButton((52, 42, 50, 50), normal=self.image_path('assets/control-arrow-up.png'))
-        self.btn_down = pygbutton.PygButton((52, 142, 50, 50), normal=self.image_path('assets/control-arrow-down.png'))
-        self.btn_z_up = pygbutton.PygButton((180, 42, 50, 50), normal=self.image_path('assets/control-arrow-up.png'))
-        self.btn_z_down = pygbutton.PygButton((180, 142, 50, 50), normal=self.image_path('assets/control-arrow-down.png'))
+        loffset = ( self.config.width - 310 ) / 2
+        toffset = ((self.config.height - self.config.statusbarheight  -150 ) / 2 ) - 40
 
-        self.btn_x_home = pygbutton.PygButton((260, 42, 50, 50), normal=self.image_path('assets/home-x.png'))
-        self.btn_y_home = pygbutton.PygButton((260, 92, 50, 50), normal=self.image_path('assets/home-y.png'))
-        self.btn_z_home = pygbutton.PygButton((260, 142, 50, 50), normal=self.image_path('assets/home-z.png'))
+        self.btn_left = pygbutton.PygButton((loffset + 2, toffset + 92, 50, 50), normal=self.image_path('assets/control-arrow-left.png'))
+        self.btn_right = pygbutton.PygButton((loffset + 102, toffset + 92, 50, 50), normal=self.image_path('assets/control-arrow-right.png'))
+        self.btn_up = pygbutton.PygButton((loffset + 52, toffset + 42, 50, 50), normal=self.image_path('assets/control-arrow-up.png'))
+        self.btn_down = pygbutton.PygButton((loffset + 52, toffset + 142, 50, 50), normal=self.image_path('assets/control-arrow-down.png'))
+        self.btn_z_up = pygbutton.PygButton((loffset + 180, toffset + 42, 50, 50), normal=self.image_path('assets/control-arrow-up.png'))
+        self.btn_z_down = pygbutton.PygButton((loffset + 180, toffset + 142, 50, 50), normal=self.image_path('assets/control-arrow-down.png'))
+
+        self.btn_x_home = pygbutton.PygButton((loffset + 260, toffset + 42, 50, 50), normal=self.image_path('assets/home-x.png'))
+        self.btn_y_home = pygbutton.PygButton((loffset + 260, toffset + 92, 50, 50), normal=self.image_path('assets/home-y.png'))
+        self.btn_z_home = pygbutton.PygButton((loffset + 260, toffset + 142, 50, 50), normal=self.image_path('assets/home-z.png'))
 
         self.client = client
 
@@ -58,8 +61,8 @@ class ControlView(PanelView):
         if 'click' in self.btn_z_home.handleEvent(event):
             self.client.home_z()
 
-    def draw(self, screen):
-        PanelView.draw(self, screen)
+    def draw(self, screen, firstframe):
+        PanelView.draw(self, screen, firstframe)
 
         self.btn_left.draw(screen)
         self.btn_right.draw(screen)

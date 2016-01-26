@@ -13,7 +13,17 @@ class OctoPiClient:
         self.apiurl_job = '{0}/api/job'.format(server_url)
         self.apiurl_status = '{0}/api/printer?apikey={1}'.format(server_url, api_key)
         self.apiurl_connection = '{0}/api/connection'.format(server_url)
+        self.apiurl_files = '{0}/api/files?apikey={1}'.format(server_url, api_key)
         self.thread = None
+
+    def get_files ( self ):
+        req = requests.get(self.apiurl_files, timeout=5)
+
+        if req.status_code == 200:
+            ret = json.loads(req.text)
+            return ret ['files']
+        else:
+            return None
 
     def get_printer_status(self, printer):
         req = requests.get(self.apiurl_status)
@@ -79,7 +89,7 @@ class OctoPiClient:
         self.thread.start()
 
     def send_request(self, url, data, headers):
-        requests.post(url, data=json.dumps(data), headers=headers, timeout=0.2)
+        requests.post(url, data=json.dumps(data), headers=headers, timeout=0.3)
         return
 
     def home_xy(self):

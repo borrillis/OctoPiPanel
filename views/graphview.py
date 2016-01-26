@@ -4,20 +4,21 @@ from views.panelview import PanelView
 
 
 class GraphView(PanelView):
-    def __init__(self, config, bus, printer):
-        PanelView.__init__(self, config, bus)
+    def __init__(self, config,  printer):
+        PanelView.__init__(self, config,  "Temperature Graph")
 
         self.printer = printer
 
         self.graph_area_left = 30
-        self.graph_area_top = 40
-        self.graph_area_width = 285
-        self.graph_area_height = 160
+        self.graph_area_top = self.config.titlebarheight
+        self.graph_area_width = self.config.width - self.graph_area_left - 20
+        self.graph_area_height = self.config.height - self.graph_area_top - self.config.statusbarheight - 10
 
         self.fntTextSmall = pygame.font.Font(os.path.join(self.config.script_directory, "assets/Roboto-Regular.ttf"), 10)
 
-    def draw(self, screen):
+    def draw(self, screen, firstframe):
         # Temperature Graphing
+        PanelView.draw(self, screen, firstframe)
         # Graph area
         pygame.draw.rect(screen, (255, 255, 255),
                          (self.graph_area_left, self.graph_area_top, self.graph_area_width, self.graph_area_height))

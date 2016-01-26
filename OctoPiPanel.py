@@ -47,16 +47,17 @@ import pygbutton
 import platform
 import time
 from threading import Thread
-from cyrusbus import Bus
 
-from Config import OctoPiPanelConfig
-from Printer import Printer
+from config import OctoPiPanelConfig
+from printer import Printer
 from client import OctoPiClient
+
 from views.dashboardview import DashboardView
 from views.menuview import MenuView
 from views.settingsview import SettingsView
 from views.controlview import ControlView
 from views.graphview import GraphView
+from views.loadfileview import LoadfileView
 
 class OctoPiPanel():
     """
@@ -68,9 +69,8 @@ class OctoPiPanel():
         """
         .
         """
-        self.bus = Bus()
-        self.bus.subscribe("viewchange", self.handle_viewchange)
-
+        self.color_bg = pygame.Color(41, 61, 70)
+        
         self.config = config
         self.octopi_client = OctoPiClient(self.config.api_baseurl, self.config.apikey)
         self.printer = Printer()
@@ -81,13 +81,17 @@ class OctoPiPanel():
         self.menu_button_image = os.path.join(self.config.script_directory, 'assets/button-menu.png')
         self.temperature_icon = pygame.image.load(os.path.join(self.config.script_directory, 'assets/icon-temperature.png'))
 
-        self.menu = MenuView(self.config, self.bus)
+        self.menu = MenuView(self.handle_viewchange, self.config)
 
         self.views = dict()
-        self.views["dashboard"] = DashboardView(self.config, self.bus, self.octopi_client, self.printer)
-        self.views["graph"] = GraphView(self.config, self.bus, self.printer)
-        self.views["control"] = ControlView(self.config, self.bus, self.octopi_client)
-        self.views["settings"] = SettingsView(self.config, self.bus)
+        self.views["dashboard"] = DashboardView(self.config, self.octopi_client, self.printer)
+        self.views["graph"] = GraphView(self.config, self.printer)
+        self.views["control"] = ControlView(self.config, self.octopi_client)
+        self.views["settings"] = SettingsView(self.config)
+        self.views["loadfile"] = LoadfileView(self.config, self.octopi_client)
+
+        self.firstframe= True
+
 
         self.active_view = self.views["dashboard"]
 
@@ -124,7 +128,8 @@ class OctoPiPanel():
 
         self.clock = pygame.time.Clock()
 
-        self.btnMenu = pygbutton.PygButton((260,  0, 40, 40), normal=self.menu_button_image)
+        #self.btnMenu = pygbutton.PygButton((self.config.width-60,  0, 60, self.config.titlebarheight), "<MENU>" ) # normal=self.menu_button_image)
+        self.btnMenu = pygbutton.PygButton((self.config.width-60,  0, 60, self.config.titlebarheight), normal=self.menu_button_image)
 
         # I couldnt seem to get at pin 252 for the backlight using the usual method, 
         # but this seems to work
@@ -220,39 +225,45 @@ class OctoPiPanel():
         self.clock.tick(30)
 
         #clear whole screen
-        self.screen.blit(self.background_image, (0, 0))
+        # self.screen.blit(self.background_image, (0, 0))
+        #clear whole screen
+        self.screen.fill( self.color_bg )
 
         # render print progress background shade
-        s = pygame.Surface((320*self.printer.Completion/100, 240), pygame.SRCALPHA)
+        s = pygame.Surface((self.config.width*self.printer.Completion/100, self.config.statusbarheight), pygame.SRCALPHA)
         s.fill((0, 0, 0, 160))
-        self.screen.blit(s, (0, 0))
+        self.screen.blit(s, (0, self.config.height - self.config.statusbarheight))
 
         # Render current view
         if self.menu_open:
-            self.menu.draw(self.screen)
+            self.menu.draw(self.screen,self.firstframe)
+            self.firstframe = True
         else:
-            self.active_view.draw(self.screen)
+            self.active_view.draw(self.screen, self.firstframe)
+            if self.firstframe:
+                self.firstframe = False
 
         # Render menu button
         self.btnMenu.draw(self.screen)
 
         # Draw status bar
-        self.screen.blit(self.temperature_icon, (0, 200))
+        self.screen.blit(self.temperature_icon, (0, self.config.height-self.config.statusbarheight))
         hot_end_label = self.fntText.render(u'Hot end: {0}\N{DEGREE SIGN}C ({1}\N{DEGREE SIGN}C)'.format(self.printer.HotEndTemp, self.printer.HotEndTempTarget), 1, (255, 255, 255))
-        self.screen.blit(hot_end_label, (40, 205))
+        self.screen.blit(hot_end_label, (40, self.config.height-self.config.statusbarheight + 5))
         bed_temp_label = self.fntText.render(u'Bed: {0}\N{DEGREE SIGN}C ({1}\N{DEGREE SIGN}C)'.format(self.printer.BedTemp, self.printer.BedTempTarget), 1, (255, 255, 255))
-        self.screen.blit(bed_temp_label, (40, 220))
+        self.screen.blit(bed_temp_label, (40, self.config.height-self.config.statusbarheight + 20))
 
         completion_label = self.percent_txt.render("{0:.1f}%".format(self.printer.Completion), 1, (255, 255, 255))
-        self.screen.blit(completion_label, (310 - (completion_label.get_width()), 205))
+        self.screen.blit(completion_label, (self.config.width-10- (completion_label.get_width()), self.config.height- self.config.statusbarheight + 5))
 
         # update screen
         pygame.display.update()
 
-    def handle_viewchange(self, eventkey, view_name):
+    def handle_viewchange(self, view_name):
         if view_name in self.views:
             self.active_view = self.views[view_name]
             self.menu_open = False
+
 
     # Reboot system
     def _reboot(self):
