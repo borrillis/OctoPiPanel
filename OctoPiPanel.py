@@ -102,6 +102,7 @@ class OctoPiPanel():
         self.Paused = False
         self.Printing = False
         self.JobLoaded = False
+        self.FanSpinning = False
         self.Completion = 0 # In procent
         self.PrintTimeLeft = 0
         self.Height = 0.0
@@ -134,7 +135,7 @@ class OctoPiPanel():
 
         # Set font
         #self.fntText = pygame.font.Font("Cyberbit.ttf", 12)
-        fontSize = 14 if self.enable_graph else 18
+        fontSize = 14 if self.enable_graph else 16
         self.fntText = pygame.font.Font(os.path.join(self.scriptDirectory, "Cyberbit.ttf"), fontSize)
         self.fntText.set_bold(True)
         self.fntTextSmall = pygame.font.Font(os.path.join(self.scriptDirectory, "Cyberbit.ttf"), 10)
@@ -146,24 +147,25 @@ class OctoPiPanel():
 
         # Home X/Y, start/abort print & reboot buttons
         btnGap = 5
-        self.btnHomeXY        = pygbutton.PygButton((  self.leftPadding, btnGap, self.buttonWidth, self.buttonHeight), "Home X/Y") 
-        self.btnStartPrint    = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace, btnGap, self.buttonWidth, self.buttonHeight), "Start print") 
-        self.btnAbortPrint    = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace, btnGap, self.buttonWidth, self.buttonHeight), "Abort print", (200, 0, 0)) 
-        self.btnReboot        = pygbutton.PygButton((  self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, btnGap, self.buttonWidth, self.buttonHeight), "Reboot");
+        self.btnHomeXY        = pygbutton.PygButton((self.leftPadding, btnGap, self.buttonWidth, self.buttonHeight), "Home X/Y") 
+        self.btnStartPrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, btnGap, self.buttonWidth, self.buttonHeight), "Start print") 
+        self.btnAbortPrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, btnGap, self.buttonWidth, self.buttonHeight), "Abort print", (200, 0, 0)) 
+        self.btnReboot        = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, btnGap, self.buttonWidth, self.buttonHeight), "Reboot");
 
         # Home Z, Z up/pause & Shutdown buttons
         btnGap += 5
-        self.btnHomeZ         = pygbutton.PygButton((  self.leftPadding, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Home Z") 
-        self.btnZUp           = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Z +" + str(self.z_up_value)) 
-        self.btnPausePrint    = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace,  self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Pause print") 
-        self.btnShutdown      = pygbutton.PygButton((  self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Shutdown");
+        self.btnHomeZ         = pygbutton.PygButton((self.leftPadding, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Home Z") 
+        self.btnZUp           = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Z +" + str(self.z_up_value)) 
+        self.btnPausePrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace,  self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Pause print") 
+        self.btnShutdown      = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Shutdown");
 
         # Heat buttons
         btnGap += 5
-        self.btnHeatBed       = pygbutton.PygButton((  self.leftPadding, self.buttonHeight * 2 + btnGap, self.buttonWidth, self.buttonHeight), "Heat bed") 
+        self.btnHeatBed       = pygbutton.PygButton((self.leftPadding, self.buttonHeight * 2 + btnGap, self.buttonWidth, self.buttonHeight), "Heat bed") 
+        self.btnFan           = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, self.buttonHeight * 2 + btnGap, self.buttonWidth, self.buttonHeight), "Turn fan on") 
 
         btnGap += 5
-        self.btnHeatHotEnd    = pygbutton.PygButton((  self.leftPadding,  self.buttonHeight * 3 + btnGap, self.buttonWidth, self.buttonHeight), "Heat hot end") 
+        self.btnHeatHotEnd    = pygbutton.PygButton((self.leftPadding,  self.buttonHeight * 3 + btnGap, self.buttonWidth, self.buttonHeight), "Heat hot end") 
 
         # Start, stop and pause buttons
 
@@ -279,6 +281,9 @@ class OctoPiPanel():
                 if 'click' in self.btnShutdown.handleEvent(event):
                     self._shutdown()
             
+                if 'click' in self.btnFan.handleEvent(event):
+                    self._fan()
+            
             # Did the user click on the screen?
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # Reset backlight counter
@@ -387,6 +392,7 @@ class OctoPiPanel():
         self.btnHeatBed.visible = not (self.Printing or self.Paused)
         self.btnReboot.visible = not (self.Printing or self.Paused)
         self.btnShutdown.visible = not (self.Printing or self.Paused)
+        self.btnFan.visible = not (self.Printing or self.Paused)
 
         # Set texts on heat buttons
         if self.HotHotEnd:
@@ -398,6 +404,11 @@ class OctoPiPanel():
             self.btnHeatBed.caption = "Turn off bed"
         else:
             self.btnHeatBed.caption = "Heat bed"
+
+        if self.FanSpinning:
+            self.btnFan.caption = "Turn fan off"
+        else:
+            self.btnFan.caption = "Turn fan on"
 
         return
                
@@ -416,15 +427,22 @@ class OctoPiPanel():
         self.btnPausePrint.draw(self.screen)
         self.btnReboot.draw(self.screen)
         self.btnShutdown.draw(self.screen)
+        self.btnFan.draw(self.screen)
 
         # Place temperatures texts
         textPos = self.buttonHeight * 2 + 15
-        textGap = (self.buttonHeight * 2) / 4 + 2
-        textGap += 2 if (self.enable_graph) else 4
-        lblHotEndTemp = self.fntText.render(u'Hot end: {0}\N{DEGREE SIGN}C ({1}\N{DEGREE SIGN}C)'.format(self.HotEndTemp, self.HotEndTempTarget), 1, (220, 0, 0))
+        textGap = (self.buttonHeight * 2) / 8
+        lblHotEndTemp = self.fntText.render(u'Hot end:', 1, (220, 0, 0))
         self.screen.blit(lblHotEndTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
-        textPos += textGap
-        lblBedTemp = self.fntText.render(u'Bed: {0}\N{DEGREE SIGN}C ({1}\N{DEGREE SIGN}C)'.format(self.BedTemp, self.BedTempTarget), 1, (66, 100, 255))
+        textPos += textGap + (2 if (self.enable_graph) else 0)
+        lblHotEndTemp = self.fntText.render(u'{0:.1f}\N{DEGREE SIGN}C ({1:.1f}\N{DEGREE SIGN}C)'.format(self.HotEndTemp, self.HotEndTempTarget), 1, (220, 0, 0))
+        self.screen.blit(lblHotEndTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
+        
+        textPos += textGap * 1.5
+        lblBedTemp = self.fntText.render(u'Bed:', 1, (66, 100, 255))
+        self.screen.blit(lblBedTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
+        textPos += textGap + (2 if (self.enable_graph) else 0)
+        lblBedTemp = self.fntText.render(u'{0:.1f}\N{DEGREE SIGN}C ({1:.1f}\N{DEGREE SIGN}C)'.format(self.BedTemp, self.BedTempTarget), 1, (66, 100, 255))
         self.screen.blit(lblBedTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
 
         # Place time left and compeltetion texts
@@ -432,11 +450,11 @@ class OctoPiPanel():
             self.Completion = 0
             self.PrintTimeLeft = 0;
 
-        textPos += textGap
+        textPos += textGap * 2
         lblPrintTimeLeft = self.fntText.render("Time left: {0}".format(datetime.timedelta(seconds = self.PrintTimeLeft)), 1, (200, 200, 200))
         self.screen.blit(lblPrintTimeLeft, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
 
-        textPos += textGap
+        textPos += textGap * 1.5
         lblCompletion = self.fntText.render("Completion: {0:.1f}%".format(self.Completion), 1, (200, 200, 200))
         self.screen.blit(lblCompletion, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
 
@@ -594,6 +612,20 @@ class OctoPiPanel():
 
         self.done = True
         print "shutdown"
+        return
+
+    # Turn on or off fan
+    def _fan(self):
+        if self.FanSpinning:
+            print "Turning fan off"
+            data = { "commands": ["M107"], "parameters": {} }
+            self.FanSpinning = False
+        else:
+            print "Turning fan on"
+            data = { "commands": ["M106 S255"], "parameters": {} }
+            self.FanSpinning = True
+
+        self._sendAPICommand(self.apiurl_job, data)
         return
 
     # Send API-data to OctoPrint
