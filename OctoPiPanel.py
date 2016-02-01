@@ -67,6 +67,7 @@ class OctoPiPanel():
     apiurl_printhead = '{0}/api/printer/printhead'.format(api_baseurl)
     apiurl_tool = '{0}/api/printer/tool'.format(api_baseurl)
     apiurl_bed = '{0}/api/printer/bed'.format(api_baseurl)
+    apiurl_command = '{0}/api/printer/command'.format(api_baseurl)
     apiurl_job = '{0}/api/job'.format(api_baseurl)
     apiurl_status = '{0}/api/printer?apikey={1}'.format(api_baseurl, apikey)
     apiurl_connection = '{0}/api/connection'.format(api_baseurl)
@@ -625,7 +626,7 @@ class OctoPiPanel():
             data = { "commands": ["M106 S255"], "parameters": {} }
             self.FanSpinning = True
 
-        self._sendAPICommand(self.apiurl_job, data)
+        self._sendAPICommand(self.apiurl_command, data)
         return
 
     # Send API-data to OctoPrint
