@@ -43,6 +43,11 @@ class OctoPiPanel():
     else:
         win_height = 240
 
+    if cfg.has_option('settings', 'enable_graph'):
+        enable_graph = cfg.getboolean('settings', 'enable_graph')
+    else:
+        enable_graph = True
+
     if cfg.has_option('settings', 'hotend_temp'):
         hotend_temp = cfg.getint('settings', 'hotend_temp')
     else:
@@ -84,7 +89,8 @@ class OctoPiPanel():
         self.leftPadding = 5
         self.buttonSpace = 10 if (self.win_width > 320) else 5
         self.buttonWidth = (self.win_width - self.leftPadding * 2 - self.buttonSpace * 2) / 3
-        self.buttonHeight = (((self.win_height - 5) / 3) * 2) / 4 - 5
+        allButtonsSpace = self.win_height - 5 if not self.enable_graph else ((self.win_height - 5) / 3) * 2
+        self.buttonHeight = (allButtonsSpace) / 4 - 5
 
         # Status flags
         self.HotEndTemp = 0.0
@@ -106,9 +112,6 @@ class OctoPiPanel():
         self.HotEndTempList = deque([0] * self.graph_area_width)
         self.BedTempList = deque([0] * self.graph_area_width)
 
-        #print self.HotEndTempList
-        #print self.BedTempList
-       
         if platform.system() == 'Linux':
           if subprocess.Popen(["pidof", "X"], stdout=subprocess.PIPE).communicate()[0].strip() == "" :
             # Init framebuffer/touchscreen environment variables
@@ -125,13 +128,14 @@ class OctoPiPanel():
             pygame.mouse.set_visible(False)
 
         self.screen = pygame.display.set_mode( (self.win_width, self.win_height) )
-	#modes = pygame.display.list_modes(16)
-	#self.screen = pygame.display.set_mode(modes[0], FULLSCREEN, 16)
+        #modes = pygame.display.list_modes(16)
+        #self.screen = pygame.display.set_mode(modes[0], FULLSCREEN, 16)
         pygame.display.set_caption( caption )
 
         # Set font
         #self.fntText = pygame.font.Font("Cyberbit.ttf", 12)
-        self.fntText = pygame.font.Font(os.path.join(self.scriptDirectory, "Cyberbit.ttf"), 12)
+        fontSize = 14 if self.enable_graph else 18
+        self.fntText = pygame.font.Font(os.path.join(self.scriptDirectory, "Cyberbit.ttf"), fontSize)
         self.fntText.set_bold(True)
         self.fntTextSmall = pygame.font.Font(os.path.join(self.scriptDirectory, "Cyberbit.ttf"), 10)
         self.fntTextSmall.set_bold(True)
@@ -167,7 +171,7 @@ class OctoPiPanel():
 
         # I couldnt seem to get at pin 252 for the backlight using the usual method, 
         # but this seems to work
-        if platform.system() == 'Linux':
+        if self.backlightofftime > 0 and platform.system() == 'Linux':
             os.system("echo 252 > /sys/class/gpio/export")
             os.system("echo 'out' > /sys/class/gpio/gpio252/direction")
             os.system("echo '1' > /sys/class/gpio/gpio252/value")
@@ -196,7 +200,7 @@ class OctoPiPanel():
                 self.get_state()
                 self.getstate_ticks = pygame.time.get_ticks()
 
-            # Is it time to turn of the backlight?
+            # Is it time to turn off the backlight?
             if self.backlightofftime > 0 and platform.system() == 'Linux':
                 if pygame.time.get_ticks() - self.bglight_ticks > self.backlightofftime:
                     # disable the backlight
@@ -214,7 +218,7 @@ class OctoPiPanel():
             
         """ Clean up """
         # enable the backlight before quiting
-        if platform.system() == 'Linux':
+        if self.backlightofftime > 0 and platform.system() == 'Linux':
             os.system("echo '1' > /sys/class/gpio/gpio252/value")
             os.system("echo '1' > /sys/class/gpio/gpio508/value")
             os.system("echo '90' > /sys/class/rpi-pwm/pwm0/duty")
@@ -230,12 +234,12 @@ class OctoPiPanel():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 print "quit"
-		self.done = True
+                self.done = True
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     print "Got escape key"
-		    self.done = True
+                    self.done = True
 
                 # Look for specific keys.
                 #  Could be used if a keyboard is connected
@@ -280,7 +284,7 @@ class OctoPiPanel():
                 # Reset backlight counter
                 self.bglight_ticks = pygame.time.get_ticks()
 
-                if self.bglight_on == False and platform.system() == 'Linux':
+                if self.backlightofftime > 0 and self.bglight_on == False and platform.system() == 'Linux':
                     # enable the backlight
                     os.system("echo '1' > /sys/class/gpio/gpio252/value")
                     os.system("echo '1' > /sys/class/gpio/gpio508/value")
@@ -343,13 +347,11 @@ class OctoPiPanel():
                 self.JobLoaded = connState['current']['state'] == "Operational" and (jobState['job']['file']['name'] != "") or (jobState['job']['file']['name'] != None)
 
                 # Save temperatures to lists
-                self.HotEndTempList.popleft()
-                self.HotEndTempList.append(self.HotEndTemp)
-                self.BedTempList.popleft()
-                self.BedTempList.append(self.BedTemp)
-
-                #print self.HotEndTempList
-                #print self.BedTempList
+                if (self.enable_graph):
+                  self.HotEndTempList.popleft()
+                  self.HotEndTempList.append(self.HotEndTemp)
+                  self.BedTempList.popleft()
+                  self.BedTempList.append(self.BedTemp)
 
                 self.Paused = connState['current']['state'] == "Paused"
                 self.Printing = connState['current']['state'] == "Printing"
@@ -417,7 +419,8 @@ class OctoPiPanel():
 
         # Place temperatures texts
         textPos = self.buttonHeight * 2 + 15
-        textGap = (self.buttonHeight * 2) / 4
+        textGap = (self.buttonHeight * 2) / 4 + 2
+        textGap += 2 if (self.enable_graph) else 4
         lblHotEndTemp = self.fntText.render(u'Hot end: {0}\N{DEGREE SIGN}C ({1}\N{DEGREE SIGN}C)'.format(self.HotEndTemp, self.HotEndTempTarget), 1, (220, 0, 0))
         self.screen.blit(lblHotEndTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
         textPos += textGap
@@ -437,69 +440,73 @@ class OctoPiPanel():
         lblCompletion = self.fntText.render("Completion: {0:.1f}%".format(self.Completion), 1, (200, 200, 200))
         self.screen.blit(lblCompletion, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
 
-        # Temperature Graphing
-        # Graph area
-        pygame.draw.rect(self.screen, (255, 255, 255), (self.graph_area_left, self.graph_area_top, self.graph_area_width, self.graph_area_height))
-
-        # Graph axes
-        # X, temp
-        pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left, self.graph_area_top], [self.graph_area_left, self.graph_area_top + self.graph_area_height], 2)
-
-        # X-axis divisions
-        pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 5], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 5], 2) # 0
-        pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 4], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 4], 2) # 50
-        pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 3], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 3], 2) # 100
-        pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 2], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 2], 2) # 150
-        pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 1], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 1], 2) # 200
-        pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 0], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 0], 2) # 250
-
-        # X-axis scale
-        lbl0 = self.fntTextSmall.render("0", 1, (200, 200, 200))
-        self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 5))
-        lbl0 = self.fntTextSmall.render("50", 1, (200, 200, 200))
-        self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 4))
-        lbl0 = self.fntTextSmall.render("100", 1, (200, 200, 200))
-        self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 3))
-        lbl0 = self.fntTextSmall.render("150", 1, (200, 200, 200))
-        self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 2))
-        lbl0 = self.fntTextSmall.render("200", 1, (200, 200, 200))
-        self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 1))
-        lbl0 = self.fntTextSmall.render("250", 1, (200, 200, 200))
-        self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 0))
- 
-        # X-axis divisions, grey lines
-        pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 4], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 4], 1) # 50
-        pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 3], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 3], 1) # 100
-        pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 2], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 2], 1) # 150
-        pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 1], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 1], 1) # 200
+        # ************************
+        #   Temperature Graphing
+        # ************************
         
-        # Y, time, 2 seconds per pixel
-        pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left, self.graph_area_top + self.graph_area_height], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height], 2)
-        
-        # Scaling factor
-        g_scale = self.graph_area_height / 250.0
+        if (self.enable_graph):
+          # Graph area
+          pygame.draw.rect(self.screen, (255, 255, 255), (self.graph_area_left, self.graph_area_top, self.graph_area_width, self.graph_area_height))
 
-        # Print temperatures for hot end
-        i = 0
-        for t in self.HotEndTempList:
-            x = self.graph_area_left + i
-            y = self.graph_area_top + self.graph_area_height - int(t * g_scale)
-            pygame.draw.line(self.screen, (220, 0, 0), [x, y], [x + 1, y], 2)
-            i += 1
+          # Graph axes
+          # X, temp
+          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left, self.graph_area_top], [self.graph_area_left, self.graph_area_top + self.graph_area_height], 2)
 
-        # Print temperatures for bed
-        i = 0
-        for t in self.BedTempList:
-            x = self.graph_area_left + i
-            y = self.graph_area_top + self.graph_area_height - int(t * g_scale)
-            pygame.draw.line(self.screen, (0, 0, 220), [x, y], [x + 1, y], 2)
-            i += 1
+          # X-axis divisions
+          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 5], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 5], 2) # 0
+          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 4], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 4], 2) # 50
+          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 3], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 3], 2) # 100
+          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 2], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 2], 2) # 150
+          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 1], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 1], 2) # 200
+          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 0], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 0], 2) # 250
 
-        # Draw target temperatures
-        # Hot end 
-        pygame.draw.line(self.screen, (180, 40, 40), [self.graph_area_left, self.graph_area_top + self.graph_area_height - (self.HotEndTempTarget * g_scale)], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height - (self.HotEndTempTarget * g_scale)], 1);
-        # Bed
-        pygame.draw.line(self.screen, (40, 40, 180), [self.graph_area_left, self.graph_area_top + self.graph_area_height - (self.BedTempTarget * g_scale)], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height - (self.BedTempTarget * g_scale)], 1);
+          # X-axis scale
+          lbl0 = self.fntTextSmall.render("0", 1, (200, 200, 200))
+          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 5))
+          lbl0 = self.fntTextSmall.render("50", 1, (200, 200, 200))
+          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 4))
+          lbl0 = self.fntTextSmall.render("100", 1, (200, 200, 200))
+          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 3))
+          lbl0 = self.fntTextSmall.render("150", 1, (200, 200, 200))
+          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 2))
+          lbl0 = self.fntTextSmall.render("200", 1, (200, 200, 200))
+          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 1))
+          lbl0 = self.fntTextSmall.render("250", 1, (200, 200, 200))
+          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 0))
+   
+          # X-axis divisions, grey lines
+          pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 4], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 4], 1) # 50
+          pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 3], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 3], 1) # 100
+          pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 2], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 2], 1) # 150
+          pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 1], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 1], 1) # 200
+          
+          # Y, time, 2 seconds per pixel
+          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left, self.graph_area_top + self.graph_area_height], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height], 2)
+          
+          # Scaling factor
+          g_scale = self.graph_area_height / 250.0
+
+          # Print temperatures for hot end
+          i = 0
+          for t in self.HotEndTempList:
+              x = self.graph_area_left + i
+              y = self.graph_area_top + self.graph_area_height - int(t * g_scale)
+              pygame.draw.line(self.screen, (220, 0, 0), [x, y], [x + 1, y], 2)
+              i += 1
+
+          # Print temperatures for bed
+          i = 0
+          for t in self.BedTempList:
+              x = self.graph_area_left + i
+              y = self.graph_area_top + self.graph_area_height - int(t * g_scale)
+              pygame.draw.line(self.screen, (0, 0, 220), [x, y], [x + 1, y], 2)
+              i += 1
+
+          # Draw target temperatures
+          # Hot end 
+          pygame.draw.line(self.screen, (180, 40, 40), [self.graph_area_left, self.graph_area_top + self.graph_area_height - (self.HotEndTempTarget * g_scale)], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height - (self.HotEndTempTarget * g_scale)], 1);
+          # Bed
+          pygame.draw.line(self.screen, (40, 40, 180), [self.graph_area_left, self.graph_area_top + self.graph_area_height - (self.BedTempTarget * g_scale)], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height - (self.BedTempTarget * g_scale)], 1);
             
         
         # update screen
@@ -508,28 +515,19 @@ class OctoPiPanel():
     def _home_xy(self):
         print "Home XY"
         data = { "command": "home", "axes": ["x", "y"] }
-
-        # Send command
         self._sendAPICommand(self.apiurl_printhead, data)
-
         return
 
     def _home_z(self):
         print "Home Z"
         data = { "command": "home", "axes": ["z"] }
-
-        # Send command
         self._sendAPICommand(self.apiurl_printhead, data)
-
         return
 
     def _z_up(self):
         print "Z up +" + str(self.z_up_value)
         data = { "command": "jog", "x": 0, "y": 0, "z": self.z_up_value }
-
-        # Send command
         self._sendAPICommand(self.apiurl_printhead, data)
-
         return
 
 
@@ -542,9 +540,7 @@ class OctoPiPanel():
             print "Heating bed - " + str(self.hotbed_temp) + " degree"
             data = { "command": "target", "target": self.hotbed_temp }
 
-        # Send command
         self._sendAPICommand(self.apiurl_bed, data)
-
         return
 
     def _heat_hotend(self):
@@ -556,39 +552,28 @@ class OctoPiPanel():
             print "Heating hotend - " + str(self.hotend_temp) + " degree"
             data = { "command": "target", "targets": { "tool0": self.hotend_temp } }
 
-        # Send command
         self._sendAPICommand(self.apiurl_tool, data)
-
         return
 
     def _start_print(self):
         # here we should display a yes/no box somehow
         print "Start print"
         data = { "command": "start" }
-
-        # Send command
         self._sendAPICommand(self.apiurl_job, data)
-
         return
 
     def _abort_print(self):
         # here we should display a yes/no box somehow
         print "Abort print"
         data = { "command": "cancel" }
-
-        # Send command
         self._sendAPICommand(self.apiurl_job, data)
-
         return
 
     # Pause or resume print
     def _pause_print(self):
         print "Pause print"
         data = { "command": "pause" }
-
-        # Send command
         self._sendAPICommand(self.apiurl_job, data)
-
         return
 
     # Reboot system
@@ -600,7 +585,6 @@ class OctoPiPanel():
 
         self.done = True
         print "reboot"
-        
         return
 
     # Shutdown system
@@ -610,7 +594,6 @@ class OctoPiPanel():
 
         self.done = True
         print "shutdown"
-
         return
 
     # Send API-data to OctoPrint
