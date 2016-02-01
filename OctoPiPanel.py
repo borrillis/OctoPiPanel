@@ -43,6 +43,21 @@ class OctoPiPanel():
     else:
         win_height = 240
 
+    if cfg.has_option('settings', 'hotend_temp'):
+        hotend_temp = cfg.getint('settings', 'hotend_temp')
+    else:
+        hotend_temp = 190
+
+    if cfg.has_option('settings', 'hotbed_temp'):
+        hotbed_temp = cfg.getint('settings', 'hotbed_temp')
+    else:
+        hotbed_temp = 50
+
+    if cfg.has_option('settings', 'z_up_value'):
+        z_up_value = cfg.getint('settings', 'z_up_value')
+    else:
+        z_up_value = 25
+
     addkey = '?apikey={0}'.format(apikey)
     apiurl_printhead = '{0}/api/printer/printhead'.format(api_baseurl)
     apiurl_tool = '{0}/api/printer/tool'.format(api_baseurl)
@@ -54,7 +69,7 @@ class OctoPiPanel():
     #print apiurl_job + addkey
 
     graph_area_left   = 30 #6
-    graph_area_top    = 125
+    graph_area_top    = (win_height / 3) * 2
     graph_area_width  = win_width - graph_area_left - 5
     graph_area_height = win_height - graph_area_top - 5
 
@@ -69,7 +84,7 @@ class OctoPiPanel():
         self.leftPadding = 5
         self.buttonSpace = 10 if (self.win_width > 320) else 5
         self.buttonWidth = (self.win_width - self.leftPadding * 2 - self.buttonSpace * 2) / 3
-        self.buttonHeight = 25
+        self.buttonHeight = (((self.win_height - 5) / 3) * 2) / 4 - 5
 
         # Status flags
         self.HotEndTemp = 0.0
@@ -95,12 +110,12 @@ class OctoPiPanel():
         #print self.BedTempList
        
         if platform.system() == 'Linux':
-			if subprocess.Popen(["pidof", "X"], stdout=subprocess.PIPE).communicate()[0].strip() == "" :
-				# Init framebuffer/touchscreen environment variables
-				os.putenv('SDL_VIDEODRIVER', 'fbcon')
-				os.putenv('SDL_FBDEV'      , '/dev/fb1')
-				os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
-				os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
+          if subprocess.Popen(["pidof", "X"], stdout=subprocess.PIPE).communicate()[0].strip() == "" :
+            # Init framebuffer/touchscreen environment variables
+            os.putenv('SDL_VIDEODRIVER', 'fbcon')
+            os.putenv('SDL_FBDEV'      , '/dev/fb1')
+            os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
+            os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
 
         # init pygame and set up screen
         pygame.init()
@@ -125,23 +140,30 @@ class OctoPiPanel():
         self.bglight_ticks = pygame.time.get_ticks()
         self.bglight_on = True
 
-        # Home X/Y/Z buttons
-        self.btnHomeXY        = pygbutton.PygButton((  self.leftPadding,   5, self.buttonWidth, self.buttonHeight), "Home X/Y") 
-        self.btnHomeZ         = pygbutton.PygButton((  self.leftPadding,  35, self.buttonWidth, self.buttonHeight), "Home Z") 
-        self.btnZUp           = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace,  35, self.buttonWidth, self.buttonHeight), "Z +25") 
+        # Home X/Y, start/abort print & reboot buttons
+        btnGap = 5
+        self.btnHomeXY        = pygbutton.PygButton((  self.leftPadding, btnGap, self.buttonWidth, self.buttonHeight), "Home X/Y") 
+        self.btnStartPrint    = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace, btnGap, self.buttonWidth, self.buttonHeight), "Start print") 
+        self.btnAbortPrint    = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace, btnGap, self.buttonWidth, self.buttonHeight), "Abort print", (200, 0, 0)) 
+        self.btnReboot        = pygbutton.PygButton((  self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, btnGap, self.buttonWidth, self.buttonHeight), "Reboot");
+
+        # Home Z, Z up/pause & Shutdown buttons
+        btnGap += 5
+        self.btnHomeZ         = pygbutton.PygButton((  self.leftPadding, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Home Z") 
+        self.btnZUp           = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Z +" + str(self.z_up_value)) 
+        self.btnPausePrint    = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace,  self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Pause print") 
+        self.btnShutdown      = pygbutton.PygButton((  self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Shutdown");
 
         # Heat buttons
-        self.btnHeatBed       = pygbutton.PygButton((  self.leftPadding,  65, self.buttonWidth, self.buttonHeight), "Heat bed") 
-        self.btnHeatHotEnd    = pygbutton.PygButton((  self.leftPadding,  95, self.buttonWidth, self.buttonHeight), "Heat hot end") 
+        btnGap += 5
+        self.btnHeatBed       = pygbutton.PygButton((  self.leftPadding, self.buttonHeight * 2 + btnGap, self.buttonWidth, self.buttonHeight), "Heat bed") 
+
+        btnGap += 5
+        self.btnHeatHotEnd    = pygbutton.PygButton((  self.leftPadding,  self.buttonHeight * 3 + btnGap, self.buttonWidth, self.buttonHeight), "Heat hot end") 
 
         # Start, stop and pause buttons
-        self.btnStartPrint    = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace,   5, self.buttonWidth, self.buttonHeight), "Start print") 
-        self.btnAbortPrint    = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace,   5, self.buttonWidth, self.buttonHeight), "Abort print", (200, 0, 0)) 
-        self.btnPausePrint    = pygbutton.PygButton((  self.leftPadding + self.buttonWidth + self.buttonSpace,  35, self.buttonWidth, self.buttonHeight), "Pause print") 
 
         # Shutdown and reboot buttons
-        self.btnReboot        = pygbutton.PygButton((  self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2,   5, self.buttonWidth, self.buttonHeight), "Reboot");
-        self.btnShutdown      = pygbutton.PygButton((  self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2,  35, self.buttonWidth, self.buttonHeight), "Shutdown");
 
         # I couldnt seem to get at pin 252 for the backlight using the usual method, 
         # but this seems to work
@@ -388,21 +410,26 @@ class OctoPiPanel():
         self.btnShutdown.draw(self.screen)
 
         # Place temperatures texts
+        textPos = self.buttonHeight * 2 + 15
+        textGap = (self.buttonHeight * 2) / 4
         lblHotEndTemp = self.fntText.render(u'Hot end: {0}\N{DEGREE SIGN}C ({1}\N{DEGREE SIGN}C)'.format(self.HotEndTemp, self.HotEndTempTarget), 1, (220, 0, 0))
-        self.screen.blit(lblHotEndTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, 60))
+        self.screen.blit(lblHotEndTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
+        textPos += textGap
         lblBedTemp = self.fntText.render(u'Bed: {0}\N{DEGREE SIGN}C ({1}\N{DEGREE SIGN}C)'.format(self.BedTemp, self.BedTempTarget), 1, (66, 100, 255))
-        self.screen.blit(lblBedTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, 75))
+        self.screen.blit(lblBedTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
 
         # Place time left and compeltetion texts
         if self.JobLoaded == False or self.PrintTimeLeft == None or self.Completion == None:
             self.Completion = 0
             self.PrintTimeLeft = 0;
 
+        textPos += textGap
         lblPrintTimeLeft = self.fntText.render("Time left: {0}".format(datetime.timedelta(seconds = self.PrintTimeLeft)), 1, (200, 200, 200))
-        self.screen.blit(lblPrintTimeLeft, (self.leftPadding + self.buttonWidth + self.buttonSpace, 90))
+        self.screen.blit(lblPrintTimeLeft, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
 
+        textPos += textGap
         lblCompletion = self.fntText.render("Completion: {0:.1f}%".format(self.Completion), 1, (200, 200, 200))
-        self.screen.blit(lblCompletion, (self.leftPadding + self.buttonWidth + self.buttonSpace, 105))
+        self.screen.blit(lblCompletion, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
 
         # Temperature Graphing
         # Graph area
@@ -473,6 +500,7 @@ class OctoPiPanel():
         pygame.display.update()
 
     def _home_xy(self):
+        print "Home XY"
         data = { "command": "home", "axes": ["x", "y"] }
 
         # Send command
@@ -481,6 +509,7 @@ class OctoPiPanel():
         return
 
     def _home_z(self):
+        print "Home Z"
         data = { "command": "home", "axes": ["z"] }
 
         # Send command
@@ -489,7 +518,8 @@ class OctoPiPanel():
         return
 
     def _z_up(self):
-        data = { "command": "jog", "x": 0, "y": 0, "z": 25 }
+        print "Z up +" + str(self.z_up_value)
+        data = { "command": "jog", "x": 0, "y": 0, "z": self.z_up_value }
 
         # Send command
         self._sendAPICommand(self.apiurl_printhead, data)
@@ -500,9 +530,11 @@ class OctoPiPanel():
     def _heat_bed(self):
         # is the bed already hot, in that case turn it off
         if self.HotBed:
+            print "Turning bed off"
             data = { "command": "target", "target": 0 }
         else:
-            data = { "command": "target", "target": 50 }
+            print "Heating bed - " + str(self.hotbed_temp) + " degree"
+            data = { "command": "target", "target": self.hotbed_temp }
 
         # Send command
         self._sendAPICommand(self.apiurl_bed, data)
@@ -512,9 +544,11 @@ class OctoPiPanel():
     def _heat_hotend(self):
         # is the bed already hot, in that case turn it off
         if self.HotHotEnd:
+            print "Turning hotend off"
             data = { "command": "target", "targets": { "tool0": 0   } }
         else:
-            data = { "command": "target", "targets": { "tool0": 190 } }
+            print "Heating hotend - " + str(self.hotend_temp) + " degree"
+            data = { "command": "target", "targets": { "tool0": self.hotend_temp } }
 
         # Send command
         self._sendAPICommand(self.apiurl_tool, data)
@@ -523,6 +557,7 @@ class OctoPiPanel():
 
     def _start_print(self):
         # here we should display a yes/no box somehow
+        print "Start print"
         data = { "command": "start" }
 
         # Send command
@@ -532,6 +567,7 @@ class OctoPiPanel():
 
     def _abort_print(self):
         # here we should display a yes/no box somehow
+        print "Abort print"
         data = { "command": "cancel" }
 
         # Send command
@@ -541,6 +577,7 @@ class OctoPiPanel():
 
     # Pause or resume print
     def _pause_print(self):
+        print "Pause print"
         data = { "command": "pause" }
 
         # Send command
