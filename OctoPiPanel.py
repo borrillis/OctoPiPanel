@@ -5,22 +5,19 @@ __license__ = "Simplified BSD 2-Clause License"
 
 import json
 import os
-import sys
-import pygame
-import pygbutton
-import requests
 import platform
-import datetime
 import subprocess
-from pygame.locals import *
 from collections import deque
 from ConfigParser import RawConfigParser
- 
-class OctoPiPanel():
-    """
-    @var done: anything can set to True to forcequit
-    @var screen: points to: pygame.display.get_surface()        
-    """
+import datetime
+
+import pygame
+import requests
+
+import pygbutton
+
+
+class OctoPiPanel:
 
     # Read settings from OctoPiPanel.cfg settings file
     cfg = RawConfigParser()
@@ -31,7 +28,6 @@ class OctoPiPanel():
     api_baseurl = cfg.get('settings', 'baseurl')
     apikey = cfg.get('settings', 'apikey')
     updatetime = cfg.getint('settings', 'updatetime')
-    backlightofftime = cfg.getint('settings', 'backlightofftime')
 
     if cfg.has_option('settings', 'window_width'):
         win_width = cfg.getint('settings', 'window_width')
@@ -72,9 +68,9 @@ class OctoPiPanel():
     apiurl_status = '{0}/api/printer?apikey={1}'.format(api_baseurl, apikey)
     apiurl_connection = '{0}/api/connection'.format(api_baseurl)
 
-    #print apiurl_job + addkey
+    # print apiurl_job + addkey
 
-    graph_area_left   = 30 #6
+    graph_area_left   = 30 # 6
     graph_area_top    = (win_height / 3) * 2
     graph_area_width  = win_width - graph_area_left - 5
     graph_area_height = win_height - graph_area_top - 5
@@ -90,15 +86,15 @@ class OctoPiPanel():
         self.leftPadding = 5
         self.buttonSpace = 10 if (self.win_width > 320) else 5
         self.buttonWidth = (self.win_width - self.leftPadding * 2 - self.buttonSpace * 2) / 3
-        allButtonsSpace = self.win_height - 5 if not self.enable_graph else ((self.win_height - 5) / 3) * 2
-        self.buttonHeight = (allButtonsSpace) / 4 - 5
+        all_buttons_space = self.win_height - 5 if not self.enable_graph else ((self.win_height - 5) / 3) * 2
+        self.buttonHeight = all_buttons_space / 4 - 5
 
         # Status flags
         self.connected = False
-        self.HotEndTemp = 0.0
-        self.BedTemp = 0.0
-        self.HotEndTempTarget = 0.0
-        self.BedTempTarget = 0.0
+        self.hotend_temp = 0.0
+        self.bed_temp = 0.0
+        self.hotend_temp_target = 0.0
+        self.bed_temp_target = 0.0
         self.HotHotEnd = False
         self.HotBed = False
         self.Paused = False
@@ -116,12 +112,12 @@ class OctoPiPanel():
         self.BedTempList = deque([0] * self.graph_area_width)
 
         if platform.system() == 'Linux':
-          if subprocess.Popen(["pidof", "X"], stdout=subprocess.PIPE).communicate()[0].strip() == "" :
-            # Init framebuffer/touchscreen environment variables
-            os.putenv('SDL_VIDEODRIVER', 'fbcon')
-            os.putenv('SDL_FBDEV'      , '/dev/fb1')
-            os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
-            os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
+            if subprocess.Popen(["pidof", "X"], stdout=subprocess.PIPE).communicate()[0].strip() == "":
+                # Init framebuffer/touchscreen environment variables
+                os.putenv('SDL_VIDEODRIVER', 'fbcon')
+                os.putenv('SDL_FBDEV', '/dev/fb1')
+                os.putenv('SDL_MOUSEDRV', 'TSLIB')
+                os.putenv('SDL_MOUSEDEV', '/dev/input/touchscreen')
 
         # init pygame and set up screen
         pygame.init()
@@ -131,59 +127,38 @@ class OctoPiPanel():
             pygame.mouse.set_visible(False)
 
         self.screen = pygame.display.set_mode( (self.win_width, self.win_height) )
-        #modes = pygame.display.list_modes(16)
-        #self.screen = pygame.display.set_mode(modes[0], FULLSCREEN, 16)
+        # modes = pygame.display.list_modes(16)
+        # self.screen = pygame.display.set_mode(modes[0], FULLSCREEN, 16)
         pygame.display.set_caption( caption )
 
         # Set font
-        fontSize = 14 if self.enable_graph else 16
-        self.fntText = pygame.font.Font(os.path.join(self.scriptDirectory, "DejaVuSans.ttf"), fontSize)
+        font_size = 14 if self.enable_graph else 16
+        self.fntText = pygame.font.Font(os.path.join(self.scriptDirectory, "DejaVuSans.ttf"), font_size)
         self.fntText.set_bold(True)
         self.fntTextSmall = pygame.font.Font(os.path.join(self.scriptDirectory, "DejaVuSans.ttf"), 10)
         self.fntTextSmall.set_bold(True)
 
-        # backlight on off status and control
-        self.bglight_ticks = pygame.time.get_ticks()
-        self.bglight_on = True
-
         # Home X/Y, start/abort print & reboot buttons
-        btnGap = 5
-        self.btnHomeXY        = pygbutton.PygButton((self.leftPadding, btnGap, self.buttonWidth, self.buttonHeight), "Home X/Y") 
-        self.btnStartPrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, btnGap, self.buttonWidth, self.buttonHeight), "Start print") 
-        self.btnAbortPrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, btnGap, self.buttonWidth, self.buttonHeight), "Abort print", (200, 0, 0)) 
-        self.btnReboot        = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, btnGap, self.buttonWidth, self.buttonHeight), "Reboot");
+        btn_gap = 5
+        self.btnHomeXY        = pygbutton.PygButton((self.leftPadding, btn_gap, self.buttonWidth, self.buttonHeight), "Home X/Y")
+        self.btnStartPrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, btn_gap, self.buttonWidth, self.buttonHeight), "Start print")
+        self.btnAbortPrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, btn_gap, self.buttonWidth, self.buttonHeight), "Abort print", (200, 0, 0))
+        self.btnConnect        = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, btn_gap, self.buttonWidth, self.buttonHeight), "Connect")
 
         # Home Z, Z up/pause & Shutdown buttons
-        btnGap += 5
-        self.btnHomeZ         = pygbutton.PygButton((self.leftPadding, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Home Z") 
-        self.btnZUp           = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Z +" + str(self.z_up_value)) 
-        self.btnPausePrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace,  self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Pause print") 
-        self.btnShutdown      = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, self.buttonHeight + btnGap, self.buttonWidth, self.buttonHeight), "Shutdown");
+        btn_gap += 5
+        self.btnHomeZ         = pygbutton.PygButton((self.leftPadding, self.buttonHeight + btn_gap, self.buttonWidth, self.buttonHeight), "Home Z")
+        self.btnZUp           = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, self.buttonHeight + btn_gap, self.buttonWidth, self.buttonHeight), "Z +" + str(self.z_up_value))
+        self.btnPausePrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace,  self.buttonHeight + btn_gap, self.buttonWidth, self.buttonHeight), "Pause print")
+        self.btnReboot      = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, self.buttonHeight + btn_gap, self.buttonWidth, self.buttonHeight), "Reboot");
 
         # Heat buttons
-        btnGap += 5
-        self.btnHeatBed       = pygbutton.PygButton((self.leftPadding, self.buttonHeight * 2 + btnGap, self.buttonWidth, self.buttonHeight), "Heat bed") 
-        self.btnFan           = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, self.buttonHeight * 2 + btnGap, self.buttonWidth, self.buttonHeight), "Turn fan on") 
+        btn_gap += 5
+        self.btnHeatBed       = pygbutton.PygButton((self.leftPadding, self.buttonHeight * 2 + btn_gap, self.buttonWidth, self.buttonHeight), "Heat bed")
+        self.btnFan           = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, self.buttonHeight * 2 + btn_gap, self.buttonWidth, self.buttonHeight), "Turn fan on")
 
-        btnGap += 5
-        self.btnHeatHotEnd    = pygbutton.PygButton((self.leftPadding,  self.buttonHeight * 3 + btnGap, self.buttonWidth, self.buttonHeight), "Heat hot end") 
-
-        # Start, stop and pause buttons
-
-        # Shutdown and reboot buttons
-
-        # I couldnt seem to get at pin 252 for the backlight using the usual method, 
-        # but this seems to work
-        if self.backlightofftime > 0 and platform.system() == 'Linux':
-            os.system("echo 252 > /sys/class/gpio/export")
-            os.system("echo 'out' > /sys/class/gpio/gpio252/direction")
-            os.system("echo '1' > /sys/class/gpio/gpio252/value")
-            os.system("echo 508 > /sys/class/gpio/export")
-            os.system("echo 'out' > /sys/class/gpio/gpio508/direction")
-            os.system("echo '1' > /sys/class/gpio/gpio508/value")
-            os.system("echo pwm > /sys/class/rpi-pwm/pwm0/mode")
-            os.system("echo '1000' > /sys/class/rpi-pwm/pwm0/frequency")
-            os.system("echo '90' > /sys/class/rpi-pwm/pwm0/duty")
+        btn_gap += 5
+        self.btnHeatHotEnd    = pygbutton.PygButton((self.leftPadding,  self.buttonHeight * 3 + btn_gap, self.buttonWidth, self.buttonHeight), "Heat hot end")
 
         # Init of class done
         print "OctoPiPanel initiated"
@@ -203,28 +178,11 @@ class OctoPiPanel():
                 self.get_state()
                 self.getstate_ticks = pygame.time.get_ticks()
 
-            # Is it time to turn off the backlight?
-            if self.backlightofftime > 0 and platform.system() == 'Linux':
-                if pygame.time.get_ticks() - self.bglight_ticks > self.backlightofftime:
-                    # disable the backlight
-                    os.system("echo '0' > /sys/class/gpio/gpio252/value")
-                    os.system("echo '0' > /sys/class/gpio/gpio508/value")
-                    os.system("echo '1' > /sys/class/rpi-pwm/pwm0/duty")
-                    self.bglight_ticks = pygame.time.get_ticks()
-                    self.bglight_on = False
-            
             # Update buttons visibility, text, graphs etc
             self.update()
 
             # Draw everything
             self.draw()
-            
-        """ Clean up """
-        # enable the backlight before quiting
-        if self.backlightofftime > 0 and platform.system() == 'Linux':
-            os.system("echo '1' > /sys/class/gpio/gpio252/value")
-            os.system("echo '1' > /sys/class/gpio/gpio508/value")
-            os.system("echo '90' > /sys/class/rpi-pwm/pwm0/duty")
             
         # OctoPiPanel is going down.
         print "OctoPiPanel is going down."
@@ -239,20 +197,9 @@ class OctoPiPanel():
                 print "Quit"
                 self.done = True
 
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    print "Got escape key"
-                    self.done = True
-
-                # Look for specific keys.
-                #  Could be used if a keyboard is connected
-                if event.key == pygame.K_a:
-                    print "Got A key"
-
             # It should only be possible to click a button if you can see it
             #  e.g. the backlight is on
-            if self.bglight_on == True:
-              if self.connected:
+            if self.connected:
                 if 'click' in self.btnHomeXY.handleEvent(event):
                     self._home_xy()
 
@@ -280,97 +227,84 @@ class OctoPiPanel():
                 if 'click' in self.btnReboot.handleEvent(event):
                     self._reboot()
 
-                if 'click' in self.btnShutdown.handleEvent(event):
-                    self._shutdown()
-            
                 if 'click' in self.btnFan.handleEvent(event):
                     self._fan()
-            
-            # Did the user click on the screen?
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                # Reset backlight counter
-                self.bglight_ticks = pygame.time.get_ticks()
 
-                if self.backlightofftime > 0 and self.bglight_on == False and platform.system() == 'Linux':
-                    # enable the backlight
-                    os.system("echo '1' > /sys/class/gpio/gpio252/value")
-                    os.system("echo '1' > /sys/class/gpio/gpio508/value")
-                    os.system("echo '90' > /sys/class/rpi-pwm/pwm0/duty")
-                    self.bglight_on = True
-                    print "Background light on."
+            if 'click' in self.btnConnect.handleEvent(event):
+                self._connect()
 
     """
     Get status update from API, regarding temp etc.
     """
     def get_state(self):
-      if self.connected:
-        try:
-            req = requests.get(self.apiurl_status)
+        if self.connected:
+            try:
+                req = requests.get(self.apiurl_status)
 
-            if req.status_code == 200:
-                state = json.loads(req.text)
-        
-                # Set status flags
-                tempKey = 'temps' if 'temps' in state else 'temperature'
-                self.HotEndTemp = state[tempKey]['tool0']['actual']
-                self.BedTemp = state[tempKey]['bed']['actual']
-                self.HotEndTempTarget = state[tempKey]['tool0']['target']
-                self.BedTempTarget = state[tempKey]['bed']['target']
+                if req.status_code == 200:
+                    state = json.loads(req.text)
 
-                if self.HotEndTempTarget == None:
-                    self.HotEndTempTarget = 0.0
+                    # Set status flags
+                    temp_key = 'temps' if 'temps' in state else 'temperature'
+                    self.hotend_temp = state[temp_key]['tool0']['actual']
+                    self.bed_temp = state[temp_key]['bed']['actual']
+                    self.hotend_temp_target = state[temp_key]['tool0']['target']
+                    self.bed_temp_target = state[temp_key]['bed']['target']
 
-                if self.BedTempTarget == None:
-                    self.BedTempTarget = 0.0
-        
-                if self.HotEndTempTarget > 0.0:
-                    self.HotHotEnd = True
-                else:
-                    self.HotHotEnd = False
+                    if self.hotend_temp_target is None:
+                        self.hotend_temp_target = 0.0
 
-                if self.BedTempTarget > 0.0:
-                    self.HotBed = True
-                else:
-                    self.HotBed = False
+                    if self.bed_temp_target is None:
+                        self.bed_temp_target = 0.0
 
-                #print self.apiurl_status
-            elif req.status_code == 401:
-                print "Error: {0}".format(req.text)
-                
-            # Get info about current job
-            req = requests.get(self.apiurl_job + self.addkey)
-            if req.status_code == 200:
-                jobState = json.loads(req.text)
+                    if self.hotend_temp_target > 0.0:
+                        self.HotHotEnd = True
+                    else:
+                        self.HotHotEnd = False
 
-            req = requests.get(self.apiurl_connection + self.addkey)
-            if req.status_code == 200:
-                connState = json.loads(req.text)
+                    if self.bed_temp_target > 0.0:
+                        self.HotBed = True
+                    else:
+                        self.HotBed = False
 
-                #print self.apiurl_job + self.addkey
-            
-                self.Completion = jobState['progress']['completion'] # In procent
-                self.PrintTimeLeft = jobState['progress']['printTimeLeft']
-                #self.Height = state['currentZ']
-                self.FileName = jobState['job']['file']['name']
-                self.JobLoaded = connState['current']['state'] == "Operational" and (jobState['job']['file']['name'] != "") or (jobState['job']['file']['name'] != None)
+                        # print self.apiurl_status
+                elif req.status_code == 401:
+                    print "Error: {0}".format(req.text)
 
-                # Save temperatures to lists
-                if (self.enable_graph):
-                  self.HotEndTempList.popleft()
-                  self.HotEndTempList.append(self.HotEndTemp)
-                  self.BedTempList.popleft()
-                  self.BedTempList.append(self.BedTemp)
+                # Get info about current job
+                req = requests.get(self.apiurl_job + self.addkey)
+                job_state = None
+                if req.status_code == 200:
+                    job_state = json.loads(req.text)
 
-                self.Paused = connState['current']['state'] == "Paused"
-                self.Printing = connState['current']['state'] == "Printing"
+                req = requests.get(self.apiurl_connection + self.addkey)
+                if req.status_code == 200:
+                    conn_state = json.loads(req.text)
 
-                
-        except requests.exceptions.ConnectionError as e:
-            print "Connection Error ({0}): {1}".format(e.errno, e.strerror)
+                    # print self.apiurl_job + self.addkey
 
-        return
-      else:
-        print "Not connected!"
+                    self.Completion = job_state['progress']['completion']  # In procent
+                    self.PrintTimeLeft = job_state['progress']['printTimeLeft']
+                    # self.Height = state['currentZ']
+                    self.FileName = job_state['job']['file']['name']
+                    self.JobLoaded = conn_state['current']['state'] == "Operational" and (job_state['job']['file']['name'] != "") or (job_state['job']['file']['name'] is not None)
+
+                    # Save temperatures to lists
+                    if self.enable_graph:
+                        self.HotEndTempList.popleft()
+                        self.HotEndTempList.append(self.hotend_temp)
+                        self.BedTempList.popleft()
+                        self.BedTempList.append(self.bed_temp)
+
+                    self.Paused = conn_state['current']['state'] == "Paused"
+                    self.Printing = conn_state['current']['state'] == "Printing"
+
+            except requests.exceptions.ConnectionError as e:
+                print "Connection Error ({0}): {1}".format(e.errno, e.strerror)
+
+            return
+        else:
+            print "Not connected!"
 
     """
     Update buttons, text, graphs etc.
@@ -395,8 +329,8 @@ class OctoPiPanel():
         # Set abort, pause, reboot and shutdown buttons visibility
         self.btnHeatHotEnd.visible = not (self.Printing or self.Paused)
         self.btnHeatBed.visible = not (self.Printing or self.Paused)
+        self.btnConnect.visible = not (self.Printing or self.Paused)
         self.btnReboot.visible = not (self.Printing or self.Paused)
-        self.btnShutdown.visible = not (self.Printing or self.Paused)
         self.btnFan.visible = not (self.Printing or self.Paused)
 
         # Set texts on heat buttons
@@ -415,10 +349,15 @@ class OctoPiPanel():
         else:
             self.btnFan.caption = "Turn fan on"
 
+        if self.connected:
+            self.btnConnect.caption = "Disconnect"
+        else:
+            self.btnConnect.caption = "Connect"
+
         return
                
     def draw(self):
-        #clear whole screen
+        # clear whole screen
         self.screen.fill( self.color_bg )
 
         # Draw buttons
@@ -430,108 +369,107 @@ class OctoPiPanel():
         self.btnStartPrint.draw(self.screen)
         self.btnAbortPrint.draw(self.screen)
         self.btnPausePrint.draw(self.screen)
+        self.btnConnect.draw(self.screen)
         self.btnReboot.draw(self.screen)
-        self.btnShutdown.draw(self.screen)
         self.btnFan.draw(self.screen)
 
         # Place temperatures texts
-        textPos = self.buttonHeight * 2 + 15
-        textGap = (self.buttonHeight * 2) / 8
-        lblHotEndTemp = self.fntText.render(u'Hot end:', 1, (220, 0, 0))
-        self.screen.blit(lblHotEndTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
-        textPos += textGap + (2 if (self.enable_graph) else 0)
-        lblHotEndTemp = self.fntText.render(u'{0:.1f}\N{DEGREE SIGN}C ({1:.1f}\N{DEGREE SIGN}C)'.format(self.HotEndTemp, self.HotEndTempTarget), 1, (220, 0, 0))
-        self.screen.blit(lblHotEndTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
+        text_pos = self.buttonHeight * 2 + 15
+        text_gap = (self.buttonHeight * 2) / 8
+        lbl_hotend_temp = self.fntText.render(u'Hot end:', 1, (220, 0, 0))
+        self.screen.blit(lbl_hotend_temp, (self.leftPadding + self.buttonWidth + self.buttonSpace, text_pos))
+        text_pos += text_gap + (2 if self.enable_graph else 0)
+        lbl_hotend_temp = self.fntText.render(u'{0:.1f}\N{DEGREE SIGN}C ({1:.1f}\N{DEGREE SIGN}C)'.format(self.hotend_temp, self.hotend_temp_target), 1, (220, 0, 0))
+        self.screen.blit(lbl_hotend_temp, (self.leftPadding + self.buttonWidth + self.buttonSpace, text_pos))
         
-        textPos += textGap * 1.5
-        lblBedTemp = self.fntText.render(u'Bed:', 1, (66, 100, 255))
-        self.screen.blit(lblBedTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
-        textPos += textGap + (2 if (self.enable_graph) else 0)
-        lblBedTemp = self.fntText.render(u'{0:.1f}\N{DEGREE SIGN}C ({1:.1f}\N{DEGREE SIGN}C)'.format(self.BedTemp, self.BedTempTarget), 1, (66, 100, 255))
-        self.screen.blit(lblBedTemp, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
+        text_pos += text_gap * 1.5
+        lbl_bed_temp = self.fntText.render(u'Bed:', 1, (66, 100, 255))
+        self.screen.blit(lbl_bed_temp, (self.leftPadding + self.buttonWidth + self.buttonSpace, text_pos))
+        text_pos += text_gap + (2 if self.enable_graph else 0)
+        lbl_bed_temp = self.fntText.render(u'{0:.1f}\N{DEGREE SIGN}C ({1:.1f}\N{DEGREE SIGN}C)'.format(self.bed_temp, self.bed_temp_target), 1, (66, 100, 255))
+        self.screen.blit(lbl_bed_temp, (self.leftPadding + self.buttonWidth + self.buttonSpace, text_pos))
 
         # Place time left and compeltetion texts
-        if self.JobLoaded == False or self.PrintTimeLeft == None or self.Completion == None:
+        if self.JobLoaded is False or self.PrintTimeLeft is None or self.Completion is None:
             self.Completion = 0
             self.PrintTimeLeft = 0;
 
-        textPos += textGap * 2
-        lblPrintTimeLeft = self.fntText.render("Time left: {0}".format(datetime.timedelta(seconds = self.PrintTimeLeft)), 1, (200, 200, 200))
-        self.screen.blit(lblPrintTimeLeft, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
+        text_pos += text_gap * 2
+        lbl_print_time_left = self.fntText.render("Time left: {0}".format(datetime.timedelta(seconds = self.PrintTimeLeft)), 1, (200, 200, 200))
+        self.screen.blit(lbl_print_time_left, (self.leftPadding + self.buttonWidth + self.buttonSpace, text_pos))
 
-        textPos += textGap * 1.5
-        lblCompletion = self.fntText.render("Completion: {0:.1f}%".format(self.Completion), 1, (200, 200, 200))
-        self.screen.blit(lblCompletion, (self.leftPadding + self.buttonWidth + self.buttonSpace, textPos))
+        text_pos += text_gap * 1.5
+        lbl_completion = self.fntText.render("Completion: {0:.1f}%".format(self.Completion), 1, (200, 200, 200))
+        self.screen.blit(lbl_completion, (self.leftPadding + self.buttonWidth + self.buttonSpace, text_pos))
 
         # ************************
         #   Temperature Graphing
         # ************************
         
-        if (self.enable_graph):
-          # Graph area
-          pygame.draw.rect(self.screen, (255, 255, 255), (self.graph_area_left, self.graph_area_top, self.graph_area_width, self.graph_area_height))
+        if self.enable_graph:
+            # Graph area
+            pygame.draw.rect(self.screen, (255, 255, 255), (self.graph_area_left, self.graph_area_top, self.graph_area_width, self.graph_area_height))
 
-          # Graph axes
-          # X, temp
-          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left, self.graph_area_top], [self.graph_area_left, self.graph_area_top + self.graph_area_height], 2)
+            # Graph axes
+            # X, temp
+            pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left, self.graph_area_top], [self.graph_area_left, self.graph_area_top + self.graph_area_height], 2)
 
-          # X-axis divisions
-          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 5], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 5], 2) # 0
-          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 4], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 4], 2) # 50
-          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 3], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 3], 2) # 100
-          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 2], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 2], 2) # 150
-          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 1], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 1], 2) # 200
-          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 0], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 0], 2) # 250
+            # X-axis divisions
+            pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 5], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 5], 2) # 0
+            pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 4], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 4], 2) # 50
+            pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 3], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 3], 2) # 100
+            pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 2], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 2], 2) # 150
+            pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 1], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 1], 2) # 200
+            pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left - 3, self.graph_area_top + (self.graph_area_height / 5) * 0], [self.graph_area_left, self.graph_area_top + (self.graph_area_height / 5) * 0], 2) # 250
 
-          # X-axis scale
-          lbl0 = self.fntTextSmall.render("0", 1, (200, 200, 200))
-          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 5))
-          lbl0 = self.fntTextSmall.render("50", 1, (200, 200, 200))
-          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 4))
-          lbl0 = self.fntTextSmall.render("100", 1, (200, 200, 200))
-          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 3))
-          lbl0 = self.fntTextSmall.render("150", 1, (200, 200, 200))
-          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 2))
-          lbl0 = self.fntTextSmall.render("200", 1, (200, 200, 200))
-          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 1))
-          lbl0 = self.fntTextSmall.render("250", 1, (200, 200, 200))
-          self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 0))
-   
-          # X-axis divisions, grey lines
-          pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 4], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 4], 1) # 50
-          pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 3], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 3], 1) # 100
-          pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 2], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 2], 1) # 150
-          pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 1], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 1], 1) # 200
-          
-          # Y, time, 2 seconds per pixel
-          pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left, self.graph_area_top + self.graph_area_height], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height], 2)
-          
-          # Scaling factor
-          g_scale = self.graph_area_height / 250.0
+            # X-axis scale
+            lbl0 = self.fntTextSmall.render("0", 1, (200, 200, 200))
+            self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 5))
+            lbl0 = self.fntTextSmall.render("50", 1, (200, 200, 200))
+            self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 4))
+            lbl0 = self.fntTextSmall.render("100", 1, (200, 200, 200))
+            self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 3))
+            lbl0 = self.fntTextSmall.render("150", 1, (200, 200, 200))
+            self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 2))
+            lbl0 = self.fntTextSmall.render("200", 1, (200, 200, 200))
+            self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 1))
+            lbl0 = self.fntTextSmall.render("250", 1, (200, 200, 200))
+            self.screen.blit(lbl0, (self.graph_area_left - 26, self.graph_area_top - 6 + (self.graph_area_height / 5) * 0))
 
-          # Print temperatures for hot end
-          i = 0
-          for t in self.HotEndTempList:
-              x = self.graph_area_left + i
-              y = self.graph_area_top + self.graph_area_height - int(t * g_scale)
-              pygame.draw.line(self.screen, (220, 0, 0), [x, y], [x + 1, y], 2)
-              i += 1
+            # X-axis divisions, grey lines
+            pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 4], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 4], 1) # 50
+            pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 3], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 3], 1) # 100
+            pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 2], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 2], 1) # 150
+            pygame.draw.line(self.screen, (200, 200, 200), [self.graph_area_left + 2, self.graph_area_top + (self.graph_area_height / 5) * 1], [self.graph_area_left + self.graph_area_width - 2, self.graph_area_top + (self.graph_area_height / 5) * 1], 1) # 200
 
-          # Print temperatures for bed
-          i = 0
-          for t in self.BedTempList:
-              x = self.graph_area_left + i
-              y = self.graph_area_top + self.graph_area_height - int(t * g_scale)
-              pygame.draw.line(self.screen, (0, 0, 220), [x, y], [x + 1, y], 2)
-              i += 1
+            # Y, time, 2 seconds per pixel
+            pygame.draw.line(self.screen, (0, 0, 0), [self.graph_area_left, self.graph_area_top + self.graph_area_height], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height], 2)
 
-          # Draw target temperatures
-          # Hot end 
-          pygame.draw.line(self.screen, (180, 40, 40), [self.graph_area_left, self.graph_area_top + self.graph_area_height - (self.HotEndTempTarget * g_scale)], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height - (self.HotEndTempTarget * g_scale)], 1);
-          # Bed
-          pygame.draw.line(self.screen, (40, 40, 180), [self.graph_area_left, self.graph_area_top + self.graph_area_height - (self.BedTempTarget * g_scale)], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height - (self.BedTempTarget * g_scale)], 1);
-            
-        
+            # Scaling factor
+            g_scale = self.graph_area_height / 250.0
+
+            # Print temperatures for hot end
+            i = 0
+            for t in self.HotEndTempList:
+                x = self.graph_area_left + i
+                y = self.graph_area_top + self.graph_area_height - int(t * g_scale)
+                pygame.draw.line(self.screen, (220, 0, 0), [x, y], [x + 1, y], 2)
+                i += 1
+
+            # Print temperatures for bed
+            i = 0
+            for t in self.BedTempList:
+                x = self.graph_area_left + i
+                y = self.graph_area_top + self.graph_area_height - int(t * g_scale)
+                pygame.draw.line(self.screen, (0, 0, 220), [x, y], [x + 1, y], 2)
+                i += 1
+
+            # Draw target temperatures
+            # Hot end
+            pygame.draw.line(self.screen, (180, 40, 40), [self.graph_area_left, self.graph_area_top + self.graph_area_height - (self.hotend_temp_target * g_scale)], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height - (self.hotend_temp_target * g_scale)], 1)
+            # Bed
+            pygame.draw.line(self.screen, (40, 40, 180), [self.graph_area_left, self.graph_area_top + self.graph_area_height - (self.bed_temp_target * g_scale)], [self.graph_area_left + self.graph_area_width, self.graph_area_top + self.graph_area_height - (self.bed_temp_target * g_scale)], 1)
+
         # update screen
         pygame.display.update()
 
@@ -552,7 +490,6 @@ class OctoPiPanel():
         data = { "command": "jog", "x": 0, "y": 0, "z": self.z_up_value }
         self._sendAPICommand(self.apiurl_printhead, data)
         return
-
 
     def _heat_bed(self):
         # is the bed already hot, in that case turn it off
@@ -610,15 +547,6 @@ class OctoPiPanel():
         print "reboot"
         return
 
-    # Shutdown system
-    def _shutdown(self):
-        if platform.system() == 'Linux':
-            os.system("shutdown -h 0")
-
-        self.done = True
-        print "shutdown"
-        return
-
     # Turn on or off fan
     def _fan(self):
         if self.FanSpinning:
@@ -633,11 +561,26 @@ class OctoPiPanel():
         self._sendAPICommand(self.apiurl_command, data)
         return
 
+    # Connect / disconnect
+    def _connect(self):
+        if self.connected:
+            print "Disconnecting"
+            self.connected = False
+        else:
+            print "Connecting"
+            self.connected = True
+
+        return
+
     # Send API-data to OctoPrint
     def _sendAPICommand(self, url, data):
-      if self.connected:
-        headers = { 'content-type': 'application/json', 'X-Api-Key': self.apikey }
-        r = requests.post(url, data=json.dumps(data), headers=headers)
+        if self.connected:
+            try:
+                headers = {'content-type': 'application/json', 'X-Api-Key': self.apikey}
+                r = requests.post(url, data=json.dumps(data), headers=headers)
+            except requests.exceptions.ConnectionError as e:
+                print "Connection Error ({0}): {1}".format(e.errno, e.strerror)
+
 
 if __name__ == '__main__':
     opp = OctoPiPanel("OctoPiPanel!")
