@@ -94,6 +94,7 @@ class OctoPiPanel():
         self.buttonHeight = (allButtonsSpace) / 4 - 5
 
         # Status flags
+        self.connected = False
         self.HotEndTemp = 0.0
         self.BedTemp = 0.0
         self.HotEndTempTarget = 0.0
@@ -135,11 +136,10 @@ class OctoPiPanel():
         pygame.display.set_caption( caption )
 
         # Set font
-        #self.fntText = pygame.font.Font("Cyberbit.ttf", 12)
         fontSize = 14 if self.enable_graph else 16
-        self.fntText = pygame.font.Font(os.path.join(self.scriptDirectory, "Cyberbit.ttf"), fontSize)
+        self.fntText = pygame.font.Font(os.path.join(self.scriptDirectory, "DejaVuSans.ttf"), fontSize)
         self.fntText.set_bold(True)
-        self.fntTextSmall = pygame.font.Font(os.path.join(self.scriptDirectory, "Cyberbit.ttf"), 10)
+        self.fntTextSmall = pygame.font.Font(os.path.join(self.scriptDirectory, "DejaVuSans.ttf"), 10)
         self.fntTextSmall.set_bold(True)
 
         # backlight on off status and control
@@ -236,7 +236,7 @@ class OctoPiPanel():
         """handle all events."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                print "quit"
+                print "Quit"
                 self.done = True
 
             if event.type == pygame.KEYDOWN:
@@ -252,6 +252,7 @@ class OctoPiPanel():
             # It should only be possible to click a button if you can see it
             #  e.g. the backlight is on
             if self.bglight_on == True:
+              if self.connected:
                 if 'click' in self.btnHomeXY.handleEvent(event):
                     self._home_xy()
 
@@ -302,6 +303,7 @@ class OctoPiPanel():
     Get status update from API, regarding temp etc.
     """
     def get_state(self):
+      if self.connected:
         try:
             req = requests.get(self.apiurl_status)
 
@@ -367,6 +369,8 @@ class OctoPiPanel():
             print "Connection Error ({0}): {1}".format(e.errno, e.strerror)
 
         return
+      else:
+        print "Not connected!"
 
     """
     Update buttons, text, graphs etc.
@@ -631,6 +635,7 @@ class OctoPiPanel():
 
     # Send API-data to OctoPrint
     def _sendAPICommand(self, url, data):
+      if self.connected:
         headers = { 'content-type': 'application/json', 'X-Api-Key': self.apikey }
         r = requests.post(url, data=json.dumps(data), headers=headers)
 
