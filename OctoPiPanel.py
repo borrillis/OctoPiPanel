@@ -39,6 +39,11 @@ class OctoPiPanel:
     else:
         win_height = 240
 
+    if cfg.has_option('settings', 'full_screen'):
+        full_screen = cfg.getboolean('settings', 'full_screen')
+    else:
+        full_screen = False
+
     if cfg.has_option('settings', 'enable_graph'):
         enable_graph = cfg.getboolean('settings', 'enable_graph')
     else:
@@ -126,9 +131,11 @@ class OctoPiPanel:
         else:
             pygame.mouse.set_visible(False)
 
-        self.screen = pygame.display.set_mode( (self.win_width, self.win_height) )
-        # modes = pygame.display.list_modes(16)
-        # self.screen = pygame.display.set_mode(modes[0], FULLSCREEN, 16)
+        if self.full_screen:
+            modes = pygame.display.list_modes(16)
+            self.screen = pygame.display.set_mode(modes[0], pygame.FULLSCREEN, 16)
+        else:
+            self.screen = pygame.display.set_mode( (self.win_width, self.win_height) )
         pygame.display.set_caption( caption )
 
         # Set font
@@ -140,25 +147,34 @@ class OctoPiPanel:
 
         # Home X/Y, start/abort print & reboot buttons
         btn_gap = 5
-        self.btnHomeXY        = pygbutton.PygButton((self.leftPadding, btn_gap, self.buttonWidth, self.buttonHeight), "Home X/Y")
-        self.btnStartPrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, btn_gap, self.buttonWidth, self.buttonHeight), "Start print")
-        self.btnAbortPrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, btn_gap, self.buttonWidth, self.buttonHeight), "Abort print", (200, 0, 0))
-        self.btnConnect        = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, btn_gap, self.buttonWidth, self.buttonHeight), "Connect")
+        first_column = self.leftPadding
+        second_column = self.leftPadding + self.buttonWidth + self.buttonSpace
+        third_column = self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2
+
+        first_row = btn_gap
+        self.btnHomeXY        = pygbutton.PygButton((first_column, btn_gap, self.buttonWidth, self.buttonHeight), "Home X/Y")
+        self.btnStartPrint    = pygbutton.PygButton((second_column, btn_gap, self.buttonWidth, self.buttonHeight), "Start print")
+        self.btnAbortPrint    = pygbutton.PygButton((second_column, btn_gap, self.buttonWidth, self.buttonHeight), "Abort print", (200, 0, 0))
+        self.btnConnect        = pygbutton.PygButton((third_column, btn_gap, self.buttonWidth, self.buttonHeight), "Connect")
 
         # Home Z, Z up/pause & Shutdown buttons
         btn_gap += 5
-        self.btnHomeZ         = pygbutton.PygButton((self.leftPadding, self.buttonHeight + btn_gap, self.buttonWidth, self.buttonHeight), "Home Z")
-        self.btnZUp           = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace, self.buttonHeight + btn_gap, self.buttonWidth, self.buttonHeight), "Z +" + str(self.z_up_value))
-        self.btnPausePrint    = pygbutton.PygButton((self.leftPadding + self.buttonWidth + self.buttonSpace,  self.buttonHeight + btn_gap, self.buttonWidth, self.buttonHeight), "Pause print")
-        self.btnReboot      = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, self.buttonHeight + btn_gap, self.buttonWidth, self.buttonHeight), "Reboot");
+        second_row = self.buttonHeight + btn_gap
+        self.btnHomeZ         = pygbutton.PygButton((first_column, second_row, self.buttonWidth, self.buttonHeight), "Home Z")
+        self.btnZUp           = pygbutton.PygButton((second_column, second_row, self.buttonWidth, self.buttonHeight), "Z +" + str(self.z_up_value))
+        self.btnPausePrint    = pygbutton.PygButton((second_column,  second_row, self.buttonWidth, self.buttonHeight), "Pause print")
+        self.btnReboot      = pygbutton.PygButton((third_column, second_row, self.buttonWidth, self.buttonHeight), "Reboot");
 
         # Heat buttons
         btn_gap += 5
-        self.btnHeatBed       = pygbutton.PygButton((self.leftPadding, self.buttonHeight * 2 + btn_gap, self.buttonWidth, self.buttonHeight), "Heat bed")
-        self.btnFan           = pygbutton.PygButton((self.leftPadding + self.buttonWidth * 2 + self.buttonSpace * 2, self.buttonHeight * 2 + btn_gap, self.buttonWidth, self.buttonHeight), "Turn fan on")
+        third_row = self.buttonHeight * 2 + btn_gap
+        self.btnHeatBed       = pygbutton.PygButton((first_column, third_row, self.buttonWidth, self.buttonHeight), "Heat bed")
+        self.btnFan           = pygbutton.PygButton((third_column, third_row, self.buttonWidth, self.buttonHeight), "Turn fan on")
 
         btn_gap += 5
-        self.btnHeatHotEnd    = pygbutton.PygButton((self.leftPadding,  self.buttonHeight * 3 + btn_gap, self.buttonWidth, self.buttonHeight), "Heat hot end")
+        fourth_row = self.buttonHeight * 3 + btn_gap
+        self.btnHeatHotEnd    = pygbutton.PygButton((first_column, fourth_row, self.buttonWidth, self.buttonHeight), "Heat hot end")
+        self.btnExit          = pygbutton.PygButton((third_column, fourth_row, self.buttonWidth, self.buttonHeight), "Exit")
 
         # Init of class done
         print "OctoPiPanel initiated"
@@ -232,6 +248,9 @@ class OctoPiPanel:
 
             if 'click' in self.btnConnect.handleEvent(event):
                 self._connect()
+            
+            if 'click' in self.btnExit.handleEvent(event):
+                self._exit()
 
     """
     Get status update from API, regarding temp etc.
@@ -372,6 +391,7 @@ class OctoPiPanel:
         self.btnConnect.draw(self.screen)
         self.btnReboot.draw(self.screen)
         self.btnFan.draw(self.screen)
+        self.btnExit.draw(self.screen)
 
         # Place temperatures texts
         text_pos = self.buttonHeight * 2 + 15
@@ -572,6 +592,11 @@ class OctoPiPanel:
 
         return
 
+    # Exit
+    def _exit(self):
+        self.done = True
+        return
+    
     # Send API-data to OctoPrint
     def _sendAPICommand(self, url, data):
         if self.connected:
