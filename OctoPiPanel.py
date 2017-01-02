@@ -126,14 +126,12 @@ class OctoPiPanel:
 
         # init pygame and set up screen
         pygame.init()
-        if platform.system() == 'Windows' or platform.system() == 'Darwin':
-            pygame.mouse.set_visible(True)
-        else:
-            pygame.mouse.set_visible(False)
+        pygame.mouse.set_visible(True)
+        pygame.mouse.set_cursor((8, 8), (4, 4), (24, 24, 24, 231, 231, 24, 24, 24), (0, 0, 0, 0, 0, 0, 0, 0))
 
         if self.full_screen:
-            modes = pygame.display.list_modes(16)
-            self.screen = pygame.display.set_mode(modes[0], pygame.FULLSCREEN, 16)
+            modes = pygame.display.list_modes()
+            self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
             self.screen = pygame.display.set_mode( (self.win_width, self.win_height) )
         pygame.display.set_caption( caption )
