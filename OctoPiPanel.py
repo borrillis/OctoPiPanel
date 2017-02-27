@@ -111,7 +111,7 @@ class OctoPiPanel():
         # init pygame and set up screen
         pygame.init()
         # Display the mouse on Windows or MacOS
-        pygame.mouse.set_visible( platform.system() == 'Windows' or platform.system() == 'Darwin')
+        #pygame.mouse.set_visible( platform.system() == 'Windows' or platform.system() == 'Darwin')
 
         display_info = pygame.display.Info()
         if self.config.fullscreen:
