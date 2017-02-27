@@ -32,10 +32,16 @@ class OctoPiClient:
             state = json.loads(req.text)
 
             # Set status flags
-            printer.HotEndTemp = state['temps']['tool0']['actual']
-            printer.BedTemp = state['temps']['bed']['actual']
-            printer.HotEndTempTarget = state['temps']['tool0']['target']
-            printer.BedTempTarget = state['temps']['bed']['target']
+           
+            if 'temps' in state:
+                tempNode = state['temps']
+            else:
+                tempNode = state['temperature']
+
+            printer.HotEndTemp = tempNode['tool0']['actual']
+            printer.BedTemp = tempNode['bed']['actual']
+            printer.HotEndTempTarget = tempNode['tool0']['target']
+            printer.BedTempTarget = tempNode['bed']['target']
 
             if not printer.HotEndTempTarget:
                 printer.HotEndTempTarget = 0.0

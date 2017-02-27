@@ -17,8 +17,9 @@ class MenuView(PanelView):
         self.menu_items = [{"text": "Dashboard", "icon": dashboard_icon, "name": "dashboard"},
                            {"text": "Temperature Graph", "icon": graph_icon, "name": "graph"},
                            {"text": "Control", "icon": control_icon, "name": "control"},
-                           {"text": "Load file", "icon": setting_icon, "name": "loadfile"}]
-        self.items_per_page = 4
+                           {"text": "Load file", "icon": setting_icon, "name": "loadfile"},
+                           {"text": "Settings", "icon": setting_icon, "name": "settings"}]
+        self.items_per_page = 5
         self.page = 0
 
         self.background_color = pygame.color.Color("#EF3220")
@@ -28,7 +29,7 @@ class MenuView(PanelView):
         PanelView.handle_event(self, event)
 
         if event.type == pygame.MOUSEBUTTONUP:
-            if 40 <= event.pos[1] < 200:
+            if 40 <= event.pos[1] < 40 * (self.items_per_page + 1) :
                 item_pos = ((event.pos[1] - 40) / 40) + (self.page * self.items_per_page)
                 if len(self.menu_items) > item_pos:
                     self.viewchange(self.menu_items[item_pos]["name"])

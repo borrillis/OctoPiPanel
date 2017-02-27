@@ -77,7 +77,7 @@ class OctoPiPanel():
 
         self.done = False
 
-        self.background_image = pygame.image.load(os.path.join(self.config.script_directory, 'assets/background.png'))
+        self.background_image = pygame.transform.smoothscale(pygame.image.load(os.path.join(self.config.script_directory, 'assets/background.png')), (self.config.width, self.config.height - self.config.statusbarheight))
         self.menu_button_image = os.path.join(self.config.script_directory, 'assets/button-menu.png')
         self.temperature_icon = pygame.image.load(os.path.join(self.config.script_directory, 'assets/icon-temperature.png'))
 
@@ -90,8 +90,7 @@ class OctoPiPanel():
         self.views["settings"] = SettingsView(self.config)
         self.views["loadfile"] = LoadfileView(self.config, self.octopi_client)
 
-        self.firstframe= True
-
+        self.firstframe = True
 
         self.active_view = self.views["dashboard"]
 
@@ -109,15 +108,15 @@ class OctoPiPanel():
 
         # init pygame and set up screen
         pygame.init()
-        if platform.system() == 'Windows' or platform.system() == 'Darwin':
-            pygame.mouse.set_visible(True)
-        else:
-            pygame.mouse.set_visible(False)
+        # Display the mouse on Windows or MacOS
+        pygame.mouse.set_visible( platform.system() == 'Windows' or platform.system() == 'Darwin')
 
-        self.screen = pygame.display.set_mode((self.config.width, self.config.height))
+        self.screen = pygame.display.set_mode((self.config.width, self.config.height), self.config.window_flags)
         pygame.display.set_caption(self.config.caption)
 
+
         # Set font
+        self.fntRegText = pygame.font.Font(os.path.join(self.config.script_directory, "assets/Roboto-Regular.ttf"), 24)
         self.fntText = pygame.font.Font(os.path.join(self.config.script_directory, "assets/Roboto-Regular.ttf"), 12)
         self.fntTextSmall = pygame.font.Font(os.path.join(self.config.script_directory, "assets/Roboto-Regular.ttf"), 10)
         self.percent_txt = pygame.font.Font(os.path.join(self.config.script_directory, "assets/Roboto-Regular.ttf"), 30)
@@ -225,9 +224,8 @@ class OctoPiPanel():
         self.clock.tick(30)
 
         #clear whole screen
-        # self.screen.blit(self.background_image, (0, 0))
-        #clear whole screen
-        self.screen.fill( self.color_bg )
+        self.screen.fill(self.color_bg)
+        self.screen.blit(self.background_image, (0, 0, self.config.width, self.config.height - self.config.statusbarheight))
 
         # render print progress background shade
         s = pygame.Surface((self.config.width*self.printer.Completion/100, self.config.statusbarheight), pygame.SRCALPHA)
@@ -252,6 +250,11 @@ class OctoPiPanel():
         self.screen.blit(hot_end_label, (40, self.config.height-self.config.statusbarheight + 5))
         bed_temp_label = self.fntText.render(u'Bed: {0}\N{DEGREE SIGN}C ({1}\N{DEGREE SIGN}C)'.format(self.printer.BedTemp, self.printer.BedTempTarget), 1, (255, 255, 255))
         self.screen.blit(bed_temp_label, (40, self.config.height-self.config.statusbarheight + 20))
+
+        file_name_lbl = self.fntRegText.render(self.printer.FileName, 1, (255, 255, 255))
+        xpos = (self.config.width - file_name_lbl.get_width()) / 2
+        ypos = (self.config.statusbarheight - file_name_lbl.get_height()) / 2
+        self.screen.blit(file_name_lbl, (xpos, self.config.height - self.config.statusbarheight + ypos ))
 
         completion_label = self.percent_txt.render("{0:.1f}%".format(self.printer.Completion), 1, (255, 255, 255))
         self.screen.blit(completion_label, (self.config.width-10- (completion_label.get_width()), self.config.height- self.config.statusbarheight + 5))

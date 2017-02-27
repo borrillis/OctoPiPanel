@@ -2,10 +2,10 @@ import pygame
 from views.panelview import PanelView
 
 
-class SettingsView(PanelView):
+class ConsoleView(PanelView):
 
     def __init__(self, config):
-        PanelView.__init__(self, config, "Settings")
+        PanelView.__init__(self, config, "Console")
         self.background_color = pygame.color.Color("#EF3220")
 
     def draw(self, screen, firstframe):

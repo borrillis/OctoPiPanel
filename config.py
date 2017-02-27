@@ -1,4 +1,5 @@
 import os
+import pygame
 from ConfigParser import RawConfigParser
 
 class OctoPiPanelConfig:
@@ -18,6 +19,11 @@ class OctoPiPanelConfig:
         config.backlightofftime = cfg.getint('settings', 'backlightofftime')
         config.statusbarheight = 40
         config.titlebarheight = 40
+        config.window_flags = pygame.DOUBLEBUF | pygame.HWSURFACE
+        
+        if cfg.has_option('settings', 'fullscreen'):
+            if cfg.getboolean('settings', 'fullscreen'):
+                config.window_flags |= pygame.FULLSCREEN | pygame.NOFRAME
 
         if cfg.has_option('settings', 'width'):
             config.width = cfg.getint('settings', 'width')
