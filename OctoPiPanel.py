@@ -111,7 +111,13 @@ class OctoPiPanel():
         # init pygame and set up screen
         pygame.init()
         # Display the mouse on Windows or MacOS
-        #pygame.mouse.set_visible( platform.system() == 'Windows' or platform.system() == 'Darwin')
+        if self.config.fullscreen and self.config.showmouse == False:
+            print "[OCTOPIPANEL]: Grabbing event input"
+            pygame.mouse.set_visible(self.config.showmouse)
+            pygame.event.set_grab(True)
+        else:
+            pygame.mouse.set_visible(self.config.showmouse)
+            pygame.event.set_grab(False)
 
         display_info = pygame.display.Info()
         if self.config.fullscreen:

@@ -19,6 +19,7 @@ class OctoPiPanelConfig:
         config.backlightofftime = cfg.getint('settings', 'backlightofftime')
         config.statusbarheight = 40
         config.titlebarheight = 40
+
         config.window_flags = pygame.DOUBLEBUF | pygame.HWSURFACE
         
         if cfg.has_option('settings', 'fullscreen'):
@@ -26,6 +27,11 @@ class OctoPiPanelConfig:
             if config.fullscreen:
                 config.window_flags |= pygame.FULLSCREEN | pygame.NOFRAME
 
+        if cfg.has_option('settings', 'showmouse'):
+            config.showmouse = cfg.getboolean('settings', 'showmouse')
+        else:
+            config.showmouse = True
+            
         if cfg.has_option('settings', 'width'):
             config.width = cfg.getint('settings', 'width')
         elif cfg.has_option('settings', 'window_width'):
