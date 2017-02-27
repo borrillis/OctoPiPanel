@@ -261,10 +261,18 @@ class PygButton(object):
 
         if type(normalSurface) == str:
             self.origSurfaceNormal = pygame.image.load(normalSurface)
+        else:
+            self.origSurfaceNormal = normalSurface
+
         if type(downSurface) == str:
             self.origSurfaceDown = pygame.image.load(downSurface)
+        else:
+            self.origSurfaceDown = downSurface
+
         if type(highlightSurface) == str:
             self.origSurfaceHighlight = pygame.image.load(highlightSurface)
+        else:
+            self.origSurfaceHighlight = highlightSurface
 
         if self.origSurfaceNormal.get_size() != self.origSurfaceDown.get_size() != self.origSurfaceHighlight.get_size():
             raise Exception('foo')

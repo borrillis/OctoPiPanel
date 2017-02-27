@@ -22,7 +22,8 @@ class OctoPiPanelConfig:
         config.window_flags = pygame.DOUBLEBUF | pygame.HWSURFACE
         
         if cfg.has_option('settings', 'fullscreen'):
-            if cfg.getboolean('settings', 'fullscreen'):
+            config.fullscreen = cfg.getboolean('settings', 'fullscreen')
+            if config.fullscreen:
                 config.window_flags |= pygame.FULLSCREEN | pygame.NOFRAME
 
         if cfg.has_option('settings', 'width'):

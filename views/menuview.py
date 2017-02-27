@@ -18,8 +18,9 @@ class MenuView(PanelView):
                            {"text": "Temperature Graph", "icon": graph_icon, "name": "graph"},
                            {"text": "Control", "icon": control_icon, "name": "control"},
                            {"text": "Load file", "icon": setting_icon, "name": "loadfile"},
-                           {"text": "Settings", "icon": setting_icon, "name": "settings"}]
-        self.items_per_page = 5
+                           {"text": "Settings", "icon": setting_icon, "name": "settings"},
+                           {"text": "Console", "icon": setting_icon, "name": "console"},]
+        self.items_per_page = 6
         self.page = 0
 
         self.background_color = pygame.color.Color("#EF3220")

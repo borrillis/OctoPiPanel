@@ -58,6 +58,7 @@ from views.settingsview import SettingsView
 from views.controlview import ControlView
 from views.graphview import GraphView
 from views.loadfileview import LoadfileView
+from views.consoleview import ConsoleView
 
 class OctoPiPanel():
     """
@@ -88,6 +89,7 @@ class OctoPiPanel():
         self.views["graph"] = GraphView(self.config, self.printer)
         self.views["control"] = ControlView(self.config, self.octopi_client)
         self.views["settings"] = SettingsView(self.config)
+        self.views["console"] = ConsoleView(self.config)
         self.views["loadfile"] = LoadfileView(self.config, self.octopi_client)
 
         self.firstframe = True
@@ -111,7 +113,12 @@ class OctoPiPanel():
         # Display the mouse on Windows or MacOS
         pygame.mouse.set_visible( platform.system() == 'Windows' or platform.system() == 'Darwin')
 
-        self.screen = pygame.display.set_mode((self.config.width, self.config.height), self.config.window_flags)
+        display_info = pygame.display.Info()
+        if self.config.fullscreen:
+            pygame.display.set_mode((display_info.current_w, display_info.current_h), self.config.window_flags)
+            self.screen = pygame.Surface((self.config.width, self.config.height), self.config.window_flags)
+        else:
+            self.screen = pygame.display.set_mode((self.config.width, self.config.height), self.config.window_flags)
         pygame.display.set_caption(self.config.caption)
 
 
@@ -189,7 +196,14 @@ class OctoPiPanel():
             # It should only be possible to click a button if you can see it
             #  e.g. the backlight is on
             if self.bglight_on:
-
+                if self.config.fullscreen and ( event.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONUP, pygame.MOUSEBUTTONDOWN)) :
+                    display_info = pygame.display.Info()			
+                    if self.config.width != display_info.current_w and self.config.height != display_info.current_h :
+                        scale_w = (float(self.config.width) / display_info.current_w)
+                        scale_h = (float(self.config.height) / display_info.current_h)
+                        scaled_pos = (int(event.pos[0] * scale_w), int(event.pos[1] * scale_h))                        
+                        event.pos = scaled_pos
+                            
                 if self.menu_open:
                     self.menu.handle_event(event)
                 else:
@@ -260,6 +274,9 @@ class OctoPiPanel():
         self.screen.blit(completion_label, (self.config.width-10- (completion_label.get_width()), self.config.height- self.config.statusbarheight + 5))
 
         # update screen
+        if self.config.fullscreen:
+            pygame.display.get_surface().blit(
+                pygame.transform.smoothscale(self.screen,(pygame.display.Info().current_w, pygame.display.Info().current_h)), (0,0))
         pygame.display.update()
 
     def handle_viewchange(self, view_name):
